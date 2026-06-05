@@ -36,7 +36,7 @@ export const PlantingDetailPage: FC<PlantingDetailPageProps> = ({
         <div id="stage-progress" class="overflow-x-auto">
           <ul class="steps steps-horizontal w-full text-xs">
             {stages.map((stage, i) => (
-              <li class={`step ${i <= currentStageIndex ? 'step-primary' : ''}`}>
+              <li class={`step ${i < currentStageIndex ? 'step-success' : i === currentStageIndex ? 'step-primary' : ''}`}>
                 {stage}
               </li>
             ))}

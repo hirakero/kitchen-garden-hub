@@ -9,7 +9,7 @@ export type PlantingCardData = {
   nextTask?: string
 }
 
-const STAGE_BADGE_COLORS = ['badge-neutral', 'badge-info', 'badge-warning', 'badge-success', 'badge-accent']
+const STAGE_BADGE_COLORS = ['badge-ghost', 'badge-info', 'badge-primary', 'badge-warning', 'badge-success']
 const stageBadgeColor = (order: number) => STAGE_BADGE_COLORS[order] ?? 'badge-ghost'
 
 export const PlantingCard: FC<PlantingCardData> = ({ id, vegetableName, spotName, stageName, stageOrder, nextTask }) => (

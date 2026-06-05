@@ -8,27 +8,30 @@ export type CheckpointItemData = {
 }
 
 const CheckpointItem: FC<CheckpointItemData> = ({ id, name, completedAt, isCurrent }) => (
-  <div
-    class={`flex items-center gap-3 p-3 rounded-lg ${isCurrent ? 'bg-primary/10 border border-primary/30' : ''}`}
-    {...(isCurrent
-      ? { 'hx-get': `/checkpoints/${id}/confirm`, 'hx-target': '#modal-container', 'hx-swap': 'innerHTML' }
-      : {})}
-  >
-    <div class={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0
-      ${completedAt ? 'border-primary bg-primary text-primary-content' : isCurrent ? 'border-primary' : 'border-base-300'}`}>
-      {completedAt && <span class="text-xs">✓</span>}
-    </div>
-    <div class="flex-1">
-      <div class={`font-medium ${completedAt ? 'line-through text-base-content/40' : ''}`}>{name}</div>
-      {completedAt && <div class="text-xs text-base-content/40">完了: {completedAt}</div>}
-    </div>
-    {isCurrent && (
+  <div class={`rounded-lg ${isCurrent ? 'bg-primary/10 border border-primary/30' : ''}`}>
+    {isCurrent ? (
+      // ボタンを行全体に広げて1点で発火、div には htmx なし
       <button
-        class="btn btn-primary btn-xs cursor-pointer"
+        class="flex items-center gap-3 p-3 w-full text-left cursor-pointer active:bg-primary/20 transition-colors"
         {...{ 'hx-get': `/checkpoints/${id}/confirm`, 'hx-target': '#modal-container', 'hx-swap': 'innerHTML' }}
       >
-        完了にする
+        <div class="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center shrink-0" />
+        <div class="flex-1">
+          <div class="font-medium">{name}</div>
+        </div>
+        <span class="text-primary text-sm font-medium shrink-0">完了にする →</span>
       </button>
+    ) : (
+      <div class="flex items-center gap-3 p-3">
+        <div class={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0
+          ${completedAt ? 'border-success bg-success text-success-content' : 'border-base-300'}`}>
+          {completedAt && <span class="text-xs">✓</span>}
+        </div>
+        <div class="flex-1">
+          <div class={`font-medium ${completedAt ? 'line-through text-base-content/40' : 'text-base-content/50'}`}>{name}</div>
+          {completedAt && <div class="text-xs text-base-content/40">完了: {completedAt}</div>}
+        </div>
+      </div>
     )}
   </div>
 )
