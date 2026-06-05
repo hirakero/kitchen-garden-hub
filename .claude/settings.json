@@ -3,10 +3,12 @@
     "allow": [
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(mkdir -p /home/k16hw/js/my-work/kitchen-garden-hub-cc/.claude/skills/grill-me)",
-      "Edit(/.claude/skills/grill-me/**)"
+      "Edit(/.claude/skills/grill-me/**)",
+      "Bash(mkdir -p /home/k16hw/js/my-work/kitchen-garden-hub-cc/.claude/commands)"
     ],
     "additionalDirectories": [
-      "/home/k16hw/js/my-work/kitchen-garden-hub-cc/.claude/skills"
+      "/home/k16hw/js/my-work/kitchen-garden-hub-cc/.claude/skills",
+      "/home/k16hw/js/my-work/kitchen-garden-hub-cc/.claude"
     ]
   }
 }
