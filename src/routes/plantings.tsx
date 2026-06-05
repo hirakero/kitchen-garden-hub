@@ -24,6 +24,7 @@ route.get('/:id/card', (c) => {
       vegetableName="ミニトマト1号鉢"
       spotName="ベランダプランター左"
       stageName="生育・着果"
+      stageOrder={3}
       nextTask="水やり (今日)"
     />
   )

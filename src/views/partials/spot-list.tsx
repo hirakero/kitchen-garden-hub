@@ -10,18 +10,21 @@ export type SpotCardData = {
 const typeLabel = { ground: '地植え', planter: 'プランター' }
 
 export const SpotCard: FC<SpotCardData> = ({ id, name, type, plantingCount }) => (
-  <div class="card bg-base-100 shadow-sm hover:shadow-md transition-shadow">
+  <a
+    href={`/spots/${id}`}
+    class="card bg-base-100 shadow-sm hover:shadow-md active:scale-[0.99] transition-all block"
+  >
     <div class="card-body p-4">
       <div class="flex items-center justify-between gap-2">
         <h3 class="font-bold">{name}</h3>
-        <span class="badge badge-outline badge-sm">{typeLabel[type]}</span>
+        <span class="text-xs text-base-content/50 bg-base-200 rounded px-2 py-0.5">{typeLabel[type]}</span>
       </div>
       <p class="text-sm text-base-content/60">{plantingCount}種栽培中</p>
-      <div class="card-actions justify-end">
-        <a href={`/spots/${id}`} class="btn btn-ghost btn-xs">詳細 →</a>
+      <div class="flex justify-end">
+        <span class="text-xs text-primary font-medium">詳細を見る →</span>
       </div>
     </div>
-  </div>
+  </a>
 )
 
 type SpotListProps = {

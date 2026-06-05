@@ -9,8 +9,8 @@ type PlantingCardListProps = {
 }
 
 const MOCK_PLANTINGS: PlantingCardData[] = [
-  { id: 1, vegetableName: 'ミニトマト1号鉢', spotName: 'ベランダプランター左', stageName: '生育・着果', nextTask: '水やり (今日)' },
-  { id: 2, vegetableName: 'きゅうり', spotName: '庭の南区画', stageName: '収穫期', nextTask: '収穫 (今日)' },
+  { id: 1, vegetableName: 'ミニトマト1号鉢', spotName: 'ベランダプランター左', stageName: '生育・着果', stageOrder: 3, nextTask: '水やり (今日)' },
+  { id: 2, vegetableName: 'きゅうり', spotName: '庭の南区画', stageName: '収穫期', stageOrder: 4, nextTask: '収穫 (今日)' },
 ]
 
 export const PlantingCardList: FC<PlantingCardListProps> = ({
