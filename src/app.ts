@@ -36,3 +36,20 @@ export type Variables = {
 export type AppType = { Bindings: Bindings; Variables: Variables }
 
 export const app = new Hono<AppType>()
+
+// routes
+import dashboardRoute from './routes/index'
+import authRoute from './routes/auth'
+import spotsRoute from './routes/spots'
+import plantingsRoute from './routes/plantings'
+import tasksRoute from './routes/tasks'
+import checkpointsRoute from './routes/checkpoints'
+import settingsRoute from './routes/settings'
+
+app.route('/', dashboardRoute)
+app.route('/auth', authRoute)
+app.route('/spots', spotsRoute)
+app.route('/plantings', plantingsRoute)
+app.route('/tasks', tasksRoute)
+app.route('/checkpoints', checkpointsRoute)
+app.route('/settings', settingsRoute)
