@@ -1,0 +1,23 @@
+name = "kitchen-garden-hub-cc"
+main = "src/index.ts"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kitchen-garden-hub"
+database_id = "placeholder-replace-after-wrangler-d1-create"
+
+[triggers]
+crons = ["0 22 * * *"]  # UTC 22:00 = JST 7:00
+
+[vars]
+VAPID_SUBJECT = "mailto:your@gmail.com"
+
+# secrets (set via `wrangler secret put`):
+#   ALLOWED_EMAIL
+#   GOOGLE_CLIENT_ID
+#   GOOGLE_CLIENT_SECRET
+#   BETTER_AUTH_SECRET
+#   VAPID_PUBLIC_KEY
+#   VAPID_PRIVATE_KEY
