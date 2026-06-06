@@ -15,6 +15,7 @@ type DashboardPageProps = {
 
 export const DashboardPage: FC<DashboardPageProps> = ({ groups = [], plantings = [], hasSpots, firstSpotId }) => (
   <div class="space-y-6">
+    <h1 class="sr-only">ダッシュボード</h1>
     <div class="lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0 space-y-6">
       <section>
         <h2 class="text-lg font-bold mb-3">今後3日のタスク</h2>

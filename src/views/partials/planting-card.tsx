@@ -27,7 +27,7 @@ export const PlantingCard: FC<PlantingCardData> = ({ id, vegetableName, spotName
         <span class={`badge ${stageBadgeColor(stageOrder)} badge-sm shrink-0`}>{stageName}</span>
       </div>
       {nextTask && (
-        <p class="text-sm text-base-content/70">次のタスク: {nextTask}</p>
+        <p class="text-sm text-base-content/70">スケジュール: {nextTask}</p>
       )}
       <div class="flex justify-end">
         <span class="text-xs text-primary font-medium">詳細を見る →</span>

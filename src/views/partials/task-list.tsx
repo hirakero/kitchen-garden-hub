@@ -5,6 +5,7 @@ import { TaskListEmpty } from './task-list-empty'
 type DayGroup = {
   label: string
   isToday: boolean
+  isPast?: boolean
   tasks: TaskItemData[]
 }
 
@@ -12,13 +13,14 @@ type TaskListProps = {
   groups?: DayGroup[]
 }
 
-// 期限切れの recurring 未完了タスクは非表示
-const filterTasks = (tasks: TaskItemData[], isToday: boolean) =>
-  tasks.filter((t) => t.completedAt || isToday || t.taskType === 'one_time')
+// Completed tasks are hidden from the dashboard.
+// Past overdue recurring tasks are hidden (still actionable one_time tasks remain visible).
+const filterTasks = (tasks: TaskItemData[], isToday: boolean, isPast?: boolean) =>
+  tasks.filter((t) => !t.completedAt && (isToday || !isPast || t.taskType === 'one_time'))
 
 export const TaskList: FC<TaskListProps> = ({ groups = [] }) => {
   const visibleGroups = groups
-    .map((g) => ({ ...g, tasks: filterTasks(g.tasks, g.isToday) }))
+    .map((g) => ({ ...g, tasks: filterTasks(g.tasks, g.isToday, g.isPast) }))
     .filter((g) => g.tasks.length > 0)
 
   return (

@@ -3,6 +3,7 @@ import { eq, and, isNull, gte, lte, asc, desc } from 'drizzle-orm'
 import type { AppType } from '../app'
 import { getDb } from '../db'
 import { plantings, plantingTaskSchedules, taskMaster, vegetableMaster, spots, stageMaster } from '../db/schema'
+import { todayJstStartSec, jstDayStartSec } from '../lib/date'
 import { Layout } from '../views/layouts/base'
 import { DashboardPage } from '../views/dashboard'
 import type { TaskItemData } from '../views/partials/task-item'
@@ -10,18 +11,18 @@ import type { PlantingCardData } from '../views/partials/planting-card'
 
 const route = new Hono<AppType>()
 
-type DayGroup = { label: string; isToday: boolean; tasks: TaskItemData[] }
+const JST_OFFSET_MS = 9 * 60 * 60 * 1000
+// Convert a UTC Date to its JST calendar day key (e.g. "2026-06-06")
+const dateKeyJst = (d: Date) => new Date(d.getTime() + JST_OFFSET_MS).toISOString().split('T')[0]
 
-// Exported so tasks route can reuse for the task-list partial refresh
+type DayGroup = { label: string; isToday: boolean; isPast: boolean; tasks: TaskItemData[] }
+
+// Exported so tasks route can reuse for the task-list partial refresh after completion/skip
 export async function fetchTaskGroups(db: ReturnType<typeof getDb>, userId: string): Promise<DayGroup[]> {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-
-  const pastBound = new Date(today)
-  pastBound.setDate(today.getDate() - 7)
-  const futureBound = new Date(today)
-  futureBound.setDate(today.getDate() + 3)
-  futureBound.setHours(23, 59, 59, 999)
+  // Single JST-based reference time — derive all bounds and labels from this to avoid midnight races
+  const todaySec = todayJstStartSec()
+  const pastBound = new Date(jstDayStartSec(-7) * 1000)
+  const futureBound = new Date((jstDayStartSec(4) - 1) * 1000)
 
   const rows = await db
     .select({
@@ -32,6 +33,7 @@ export async function fetchTaskGroups(db: ReturnType<typeof getDb>, userId: stri
       taskType: taskMaster.taskType,
       vegetableName: vegetableMaster.name,
       spotName: spots.name,
+      plantingId: plantings.id,
     })
     .from(plantingTaskSchedules)
     .innerJoin(taskMaster, eq(plantingTaskSchedules.taskMasterId, taskMaster.id))
@@ -49,31 +51,23 @@ export async function fetchTaskGroups(db: ReturnType<typeof getDb>, userId: stri
     )
     .orderBy(asc(plantingTaskSchedules.scheduledDate))
 
-  const today2 = new Date()
-  today2.setHours(0, 0, 0, 0)
-  const tomorrow = new Date(today2); tomorrow.setDate(today2.getDate() + 1)
-  const dayAfter = new Date(today2); dayAfter.setDate(today2.getDate() + 2)
-  const yesterday = new Date(today2); yesterday.setDate(today2.getDate() - 1)
-  const dateKey = (d: Date) => d.toISOString().split('T')[0]
-  const todayKey = dateKey(today2)
-  const tomorrowKey = dateKey(tomorrow)
-  const dayAfterKey = dateKey(dayAfter)
-  const yesterdayKey = dateKey(yesterday)
+  const todayKeyJst = dateKeyJst(new Date(todaySec * 1000))
+  const tomorrowKeyJst = dateKeyJst(new Date((todaySec + 86400) * 1000))
+  const dayAfterKeyJst = dateKeyJst(new Date((todaySec + 2 * 86400) * 1000))
+  const yesterdayKeyJst = dateKeyJst(new Date((todaySec - 86400) * 1000))
 
   const labelFor = (key: string, date: Date): { label: string; isToday: boolean } => {
-    if (key === todayKey) return { label: '今日', isToday: true }
-    if (key === tomorrowKey) return { label: '明日', isToday: false }
-    if (key === dayAfterKey) return { label: '明後日', isToday: false }
-    if (key === yesterdayKey) return { label: '昨日', isToday: false }
+    if (key === todayKeyJst) return { label: '今日', isToday: true }
+    if (key === tomorrowKeyJst) return { label: '明日', isToday: false }
+    if (key === dayAfterKeyJst) return { label: '明後日', isToday: false }
+    if (key === yesterdayKeyJst) return { label: '昨日', isToday: false }
     return { label: `${date.getMonth() + 1}/${date.getDate()}`, isToday: false }
   }
 
   const groupMap = new Map<string, { date: Date; tasks: TaskItemData[] }>()
   for (const row of rows) {
-    const d = new Date(row.scheduledDate)
-    d.setHours(0, 0, 0, 0)
-    const key = dateKey(d)
-    if (!groupMap.has(key)) groupMap.set(key, { date: d, tasks: [] })
+    const key = dateKeyJst(row.scheduledDate)
+    if (!groupMap.has(key)) groupMap.set(key, { date: new Date(row.scheduledDate), tasks: [] })
     groupMap.get(key)!.tasks.push({
       id: row.id,
       taskName: row.taskName,
@@ -81,27 +75,24 @@ export async function fetchTaskGroups(db: ReturnType<typeof getDb>, userId: stri
       spotName: row.spotName,
       taskType: row.taskType,
       completedAt: row.completedAt ? Number(row.completedAt) : null,
+      isPast: key < todayKeyJst,
+      plantingId: row.plantingId,
     })
   }
 
   return [...groupMap.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(([key, { date, tasks }]) => ({ ...labelFor(key, date), tasks }))
+    .map(([key, { date, tasks }]) => ({ ...labelFor(key, date), isPast: key < todayKeyJst, tasks }))
 }
 
 route.get('/', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
 
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayMs = today.getTime()
+  const todaySec = todayJstStartSec()
+  const todayKeyJst = dateKeyJst(new Date(todaySec * 1000))
 
-  const futureBound = new Date(today)
-  futureBound.setDate(today.getDate() + 3)
-  futureBound.setHours(23, 59, 59, 999)
-
-  const [taskGroups, activePlantings, allSpots, upcomingTasks] = await Promise.all([
+  const [taskGroups, activePlantings, allSpots] = await Promise.all([
     fetchTaskGroups(db, userId),
     db
       .select({
@@ -118,37 +109,17 @@ route.get('/', async (c) => {
       .where(and(eq(plantings.userId, userId), isNull(plantings.finishedAt)))
       .orderBy(desc(plantings.createdAt)),
     db.select({ id: spots.id }).from(spots).where(eq(spots.userId, userId)).limit(1),
-    // Earliest uncompleted task per planting for "next task" label on cards
-    db
-      .select({
-        plantingId: plantingTaskSchedules.plantingId,
-        scheduledDate: plantingTaskSchedules.scheduledDate,
-        taskName: taskMaster.name,
-      })
-      .from(plantingTaskSchedules)
-      .innerJoin(taskMaster, eq(plantingTaskSchedules.taskMasterId, taskMaster.id))
-      .innerJoin(plantings, eq(plantingTaskSchedules.plantingId, plantings.id))
-      .where(
-        and(
-          eq(plantings.userId, userId),
-          isNull(plantings.finishedAt),
-          isNull(plantingTaskSchedules.completedAt),
-          isNull(plantingTaskSchedules.skippedAt),
-          gte(plantingTaskSchedules.scheduledDate, today),
-          lte(plantingTaskSchedules.scheduledDate, futureBound),
-        )
-      )
-      .orderBy(asc(plantingTaskSchedules.scheduledDate)),
   ])
 
-  // Build nextTask label per planting (first upcoming task in the window)
+  // Derive nextTaskMap from already-fetched taskGroups data (no extra D1 query)
   const nextTaskMap = new Map<number, string>()
-  for (const t of upcomingTasks) {
-    if (nextTaskMap.has(t.plantingId)) continue
-    const d = new Date(t.scheduledDate)
-    d.setHours(0, 0, 0, 0)
-    const label = d.getTime() === todayMs ? '今日' : `${d.getMonth() + 1}/${d.getDate()}`
-    nextTaskMap.set(t.plantingId, `${t.taskName} (${label})`)
+  for (const group of taskGroups) {
+    if (group.isPast) continue
+    for (const task of group.tasks) {
+      if (!task.plantingId || task.completedAt || nextTaskMap.has(task.plantingId)) continue
+      const label = group.isToday ? '今日' : group.label
+      nextTaskMap.set(task.plantingId, `${task.taskName} (${label})`)
+    }
   }
 
   const plantingCards: PlantingCardData[] = activePlantings.map((p) => ({
