@@ -11,6 +11,7 @@ type PlantingDetailPageProps = {
   spotId: number
   stages: StageInfo[]
   currentStageId: number | null
+  isFinished: boolean
   checkpoints: CheckpointItemData[]
   recentHistory: HistoryEntry[]
 }
@@ -22,6 +23,7 @@ export const PlantingDetailPage: FC<PlantingDetailPageProps> = ({
   spotId,
   stages,
   currentStageId,
+  isFinished,
   checkpoints,
   recentHistory,
 }) => {
@@ -41,31 +43,48 @@ export const PlantingDetailPage: FC<PlantingDetailPageProps> = ({
         </div>
       </div>
 
-      <section class="card bg-base-100 shadow-sm">
+      {isFinished && (
+        <div role="alert" class="alert alert-success">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <span>栽培が完了しました！お疲れ様でした。</span>
+        </div>
+      )}
+
+      <section id="stage-progress" class="card bg-base-100 shadow-sm">
         <div class="card-body p-4 space-y-3">
           <h2 class="font-bold">現在のステージ</h2>
-          <div id="stage-progress" class="overflow-x-auto">
-            <ul class="steps steps-horizontal w-full text-xs">
-              {stages.map((stage, i) => (
-                <li class={`step ${i < currentStageIndex ? 'step-success' : i === currentStageIndex ? 'step-primary' : ''}`}>
-                  {stage.name}
-                </li>
-              ))}
+          <div class="overflow-x-auto">
+            <ul class="steps steps-horizontal min-w-max text-xs px-1">
+              {stages.map((stage, i) => {
+                const isDone = isFinished || i < currentStageIndex
+                const isCurrent = !isFinished && i === currentStageIndex
+                return (
+                  <li class={`step ${isDone ? 'step-success' : isCurrent ? 'step-primary' : ''}`}>
+                    {stage.name}
+                  </li>
+                )
+              })}
             </ul>
           </div>
-          <p class="text-sm text-center">
-            現在: <span class="badge badge-primary">{currentStageName}</span>
-          </p>
+          {!isFinished && (
+            <p class="text-sm text-center">
+              現在: <span class="badge badge-primary">{currentStageName}</span>
+            </p>
+          )}
         </div>
       </section>
 
-      <section class="card bg-base-100 shadow-sm">
-        <div class="card-body p-4 space-y-3">
-          <h2 class="font-bold">チェックポイント</h2>
-          <p class="text-xs text-base-content/50">完了したら次のステージに進みます（確認モーダルが表示されます）</p>
-          <CheckpointList checkpoints={checkpoints} />
-        </div>
-      </section>
+      {!isFinished && (
+        <section class="card bg-base-100 shadow-sm">
+          <div class="card-body p-4 space-y-3">
+            <h2 class="font-bold">チェックポイント</h2>
+            <p class="text-xs text-base-content/50">完了したら次のステージに進みます（確認モーダルが表示されます）</p>
+            <CheckpointList checkpoints={checkpoints} />
+          </div>
+        </section>
+      )}
 
       {recentHistory.length > 0 && (
         <section class="card bg-base-100 shadow-sm">

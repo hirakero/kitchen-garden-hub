@@ -11,9 +11,9 @@ export type CheckpointItemData = {
 const CheckpointItem: FC<CheckpointItemData> = ({ id, name, completedAt, isCurrent, plantingId }) => (
   <div class={`rounded-lg ${isCurrent ? 'bg-primary/10 border border-primary/30' : ''}`}>
     {isCurrent ? (
-      // ボタンを行全体に広げて1点で発火、div には htmx なし
       <button
         class="flex items-center gap-3 p-3 w-full text-left cursor-pointer active:bg-primary/20 transition-colors"
+        aria-label={`${name} を完了にする`}
         {...{ 'hx-get': `/checkpoints/${id}/confirm?plantingId=${plantingId ?? ''}`, 'hx-target': '#modal-container', 'hx-swap': 'innerHTML' }}
       >
         <div class="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center shrink-0" />
@@ -41,15 +41,7 @@ type CheckpointListProps = {
   checkpoints?: CheckpointItemData[]
 }
 
-const MOCK_CHECKPOINTS: CheckpointItemData[] = [
-  { id: 1, name: '発芽を確認した', completedAt: '2026-05-01' },
-  { id: 2, name: '本葉4〜5枚になった', completedAt: '2026-05-15' },
-  { id: 3, name: '定植した', completedAt: '2026-06-01' },
-  { id: 4, name: '実が赤くなり始めた', isCurrent: true },
-  { id: 5, name: '収穫を終了した' },
-]
-
-export const CheckpointList: FC<CheckpointListProps> = ({ checkpoints = MOCK_CHECKPOINTS }) => (
+export const CheckpointList: FC<CheckpointListProps> = ({ checkpoints = [] }) => (
   <div id="checkpoint-list" class="space-y-1">
     {checkpoints.map((cp) => <CheckpointItem {...cp} />)}
   </div>

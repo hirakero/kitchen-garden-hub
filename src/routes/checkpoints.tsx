@@ -21,6 +21,10 @@ route.get('/:id/confirm', async (c) => {
   const checkpointId = Number(c.req.param('id'))
   const plantingId = Number(c.req.query('plantingId'))
 
+  if (!Number.isInteger(checkpointId) || checkpointId <= 0 || !Number.isInteger(plantingId) || plantingId <= 0) {
+    return c.text('Bad Request', 400)
+  }
+
   const cp = await db
     .select({ id: checkpointMaster.id, stageId: checkpointMaster.stageId })
     .from(checkpointMaster)
@@ -40,6 +44,9 @@ route.get('/:id/confirm', async (c) => {
     .get()
 
   if (!cp || !planting) return c.notFound()
+
+  // Confirm checkpoint belongs to the planting's current stage
+  if (cp.stageId !== planting.currentStageId) return c.notFound()
 
   const allStages = await db
     .select({ id: stageMaster.id, name: stageMaster.name, orderIndex: stageMaster.orderIndex })
@@ -68,12 +75,28 @@ route.post('/:id/complete', async (c) => {
   const checkpointId = Number(c.req.param('id'))
   const plantingId = Number(c.req.query('plantingId'))
 
+  if (!Number.isInteger(checkpointId) || checkpointId <= 0 || !Number.isInteger(plantingId) || plantingId <= 0) {
+    return c.text('Bad Request', 400)
+  }
+
   const planting = await db
-    .select()
+    .select({
+      id: plantings.id,
+      vegetableId: plantings.vegetableId,
+      currentStageId: plantings.currentStageId,
+      finishedAt: plantings.finishedAt,
+    })
     .from(plantings)
     .where(and(eq(plantings.id, plantingId), eq(plantings.userId, userId)))
     .get()
+
   if (!planting) return c.notFound()
+
+  // Already finished — redirect idempotently
+  if (planting.finishedAt) {
+    c.header('HX-Redirect', `/plantings/${plantingId}#stage-progress`)
+    return c.body(null, 200)
+  }
 
   const cp = await db
     .select({ id: checkpointMaster.id, stageId: checkpointMaster.stageId })
@@ -81,15 +104,25 @@ route.post('/:id/complete', async (c) => {
     .where(eq(checkpointMaster.id, checkpointId))
     .get()
 
-  // Verify this checkpoint belongs to the planting's current stage
   if (!cp || cp.stageId !== planting.currentStageId) {
     return c.text('Bad Request', 400)
   }
 
-  // Record checkpoint completion
-  await db.insert(plantingCheckpointLogs).values({ plantingId, checkpointMasterId: checkpointId })
+  // Idempotency: if already logged, redirect without side effects
+  const existing = await db
+    .select({ id: plantingCheckpointLogs.id })
+    .from(plantingCheckpointLogs)
+    .where(and(
+      eq(plantingCheckpointLogs.plantingId, plantingId),
+      eq(plantingCheckpointLogs.checkpointMasterId, checkpointId),
+    ))
+    .get()
 
-  // Find next stage
+  if (existing) {
+    c.header('HX-Redirect', `/plantings/${plantingId}#stage-progress`)
+    return c.body(null, 200)
+  }
+
   const allStages = await db
     .select({ id: stageMaster.id, orderIndex: stageMaster.orderIndex })
     .from(stageMaster)
@@ -99,7 +132,7 @@ route.post('/:id/complete', async (c) => {
   const currentIdx = allStages.findIndex((s) => s.id === planting.currentStageId)
   const nextStage = currentIdx >= 0 && currentIdx < allStages.length - 1 ? allStages[currentIdx + 1] : null
 
-  // Delete all uncompleted/unskipped task schedules (previous stage cleanup)
+  // Delete uncompleted/unskipped task schedules from the previous stage
   await db
     .delete(plantingTaskSchedules)
     .where(
@@ -112,23 +145,23 @@ route.post('/:id/complete', async (c) => {
 
   if (nextStage) {
     await db.update(plantings).set({ currentStageId: nextStage.id }).where(eq(plantings.id, plantingId))
-    await generateTaskSchedules(db, plantingId, nextStage.id)
   } else {
-    // Final stage completed — finish the planting
     await db.update(plantings).set({ currentStageId: null, finishedAt: new Date() }).where(eq(plantings.id, plantingId))
   }
 
-  // Full page reload via htmx redirect
-  c.header('HX-Redirect', `/plantings/${plantingId}`)
+  // Log inserted last as the commit point — earlier steps can be safely retried if they failed
+  await db.insert(plantingCheckpointLogs).values({ plantingId, checkpointMasterId: checkpointId })
+
+  if (nextStage) {
+    await generateTaskSchedules(db, plantingId, nextStage.id)
+  }
+
+  c.header('HX-Redirect', `/plantings/${plantingId}#stage-progress`)
   return c.body(null, 200)
 })
 
 export default route
 
-// ----------------------------------------------------------------
-// Shared helper: generate task schedules for a stage starting today
-// Recurring: generate rows for next 60 days; One-time: single row
-// ----------------------------------------------------------------
 export async function generateTaskSchedules(
   db: ReturnType<typeof getDb>,
   plantingId: number,
@@ -147,7 +180,7 @@ export async function generateTaskSchedules(
       const d = new Date(today)
       d.setDate(today.getDate() + (task.daysFromStageStart ?? 0))
       schedules.push({ plantingId, taskMasterId: task.id, scheduledDate: d })
-    } else if (task.taskType === 'recurring' && task.intervalDays) {
+    } else if (task.taskType === 'recurring' && task.intervalDays && task.intervalDays > 0) {
       for (let offset = 0; offset <= DAYS_AHEAD; offset += task.intervalDays) {
         const d = new Date(today)
         d.setDate(today.getDate() + offset)
