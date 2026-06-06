@@ -1,7 +1,13 @@
 -- Vegetable master data seed (9 vegetables)
 -- Run (local):  wrangler d1 execute kitchen-garden-hub --local --file=drizzle/seed.sql
 -- Run (remote): wrangler d1 execute kitchen-garden-hub --file=drizzle/seed.sql
--- Uses INSERT OR IGNORE so running multiple times is safe
+--
+-- Uses INSERT OR IGNORE so running the seed twice is safe.
+-- NOTE: INSERT OR IGNORE silently skips rows whose PK already exists.
+-- To apply corrections to existing data, run:
+--   DELETE FROM task_master; DELETE FROM checkpoint_master;
+--   DELETE FROM stage_master; DELETE FROM vegetable_master;
+-- then re-run this file (safe before any user data references master IDs).
 
 -- ================================================================
 -- vegetable_master
@@ -18,7 +24,7 @@ INSERT OR IGNORE INTO vegetable_master (id, name, description) VALUES
   (9, 'ジャガイモ', '数ヶ月保存可能。春・秋の二期作が可能。');
 
 -- ================================================================
--- stage_master  (vegetable_id, name, order_index)
+-- stage_master  (vegetable_id, name, order_index, description)
 -- ================================================================
 -- ミニトマト: 5 stages
 INSERT OR IGNORE INTO stage_master (id, vegetable_id, name, order_index) VALUES
@@ -52,11 +58,11 @@ INSERT OR IGNORE INTO stage_master (id, vegetable_id, name, order_index) VALUES
   (16, 5, '生育',   2),
   (17, 5, '収穫',   3);
 
--- ニラ: 3 stages
-INSERT OR IGNORE INTO stage_master (id, vegetable_id, name, order_index) VALUES
-  (18, 6, '種まき・活着',     1),
-  (19, 6, '生育',             2),
-  (20, 6, '収穫期（多年草）', 3);
+-- ニラ: 3 stages — note: 収穫期は初年度に収穫しないこと
+INSERT OR IGNORE INTO stage_master (id, vegetable_id, name, order_index, description) VALUES
+  (18, 6, '種まき・活着',     1, NULL),
+  (19, 6, '生育',             2, NULL),
+  (20, 6, '収穫期（多年草）', 3, '初年度は収穫を控えて株を充実させること。2年目以降から収穫開始。');
 
 -- 万能ネギ: 3 stages
 INSERT OR IGNORE INTO stage_master (id, vegetable_id, name, order_index) VALUES
@@ -124,98 +130,106 @@ INSERT OR IGNORE INTO checkpoint_master (id, stage_id, name, order_index) VALUES
   (31, 31, '収穫・保管完了',                     1);
 
 -- ================================================================
--- task_master  columns: id, stage_id, name, task_type, days_from_stage_start, interval_days
--- one_time: interval_days=NULL, days_from_stage_start=days after stage start (0=same day)
--- recurring: days_from_stage_start=NULL, interval_days=repeat every N days
+-- task_master
+-- one_time: interval_days=NULL, days_from_stage_start=N (days after stage starts)
+-- recurring: days_from_stage_start=NULL, interval_days=N
 -- ================================================================
 INSERT OR IGNORE INTO task_master (id, stage_id, name, task_type, days_from_stage_start, interval_days) VALUES
   -- ミニトマト 種まき (stage 1)
-  (1,  1,  '水やり',           'recurring', NULL, 1),
+  (1,  1,  '水やり',              'recurring', NULL, 1),
   -- ミニトマト 育苗 (stage 2)
-  (2,  2,  '水やり',           'recurring', NULL, 2),
-  (3,  2,  '液肥',             'recurring', NULL, 7),
+  (2,  2,  '水やり',              'recurring', NULL, 2),
+  (3,  2,  '液肥',                'recurring', NULL, 7),
   -- ミニトマト 定植 (stage 3)
-  (4,  3,  '支柱立て',         'one_time',  0,    NULL),
-  (5,  3,  '水やり',           'recurring', NULL, 2),
+  (4,  3,  '支柱立て',            'one_time',  0,    NULL),
+  (5,  3,  '水やり',              'recurring', NULL, 2),
   -- ミニトマト 生育・着果 (stage 4)
-  (6,  4,  '水やり',           'recurring', NULL, 2),
-  (7,  4,  '芽かき',           'recurring', NULL, 7),
-  (8,  4,  '追肥',             'recurring', NULL, 14),
+  -- 芽かき: 4日ごと（7日では脇芽が太く木質化してしまう）
+  (6,  4,  '水やり',              'recurring', NULL, 2),
+  (7,  4,  '芽かき',              'recurring', NULL, 4),
+  (8,  4,  '追肥',                'recurring', NULL, 14),
+  (61, 4,  '観察（病害虫）',      'recurring', NULL, 7),
   -- ミニトマト 収穫期 (stage 5)
-  (9,  5,  '水やり',           'recurring', NULL, 2),
-  (10, 5,  '収穫',             'recurring', NULL, 3),
-  (11, 5,  '追肥',             'recurring', NULL, 14),
+  (9,  5,  '水やり',              'recurring', NULL, 2),
+  (10, 5,  '収穫',                'recurring', NULL, 3),
+  (11, 5,  '追肥',                'recurring', NULL, 14),
   -- きゅうり 定植（苗から） (stage 6)
-  (12, 6,  '支柱立て',         'one_time',  0,    NULL),
-  (13, 6,  '水やり',           'recurring', NULL, 1),
+  (12, 6,  '支柱立て',            'one_time',  0,    NULL),
+  (13, 6,  '水やり',              'recurring', NULL, 1),
   -- きゅうり 生育 (stage 7)
-  (14, 7,  '水やり',           'recurring', NULL, 1),
-  (15, 7,  '追肥',             'recurring', NULL, 7),
-  (16, 7,  '誘引',             'recurring', NULL, 3),
+  (14, 7,  '水やり',              'recurring', NULL, 1),
+  (15, 7,  '追肥',                'recurring', NULL, 7),
+  (16, 7,  '誘引',                'recurring', NULL, 3),
+  (60, 7,  '観察（病害虫）',      'recurring', NULL, 7),
   -- きゅうり 収穫期 (stage 8)
-  (17, 8,  '水やり',           'recurring', NULL, 1),
-  (18, 8,  '収穫',             'recurring', NULL, 2),
-  (19, 8,  '追肥',             'recurring', NULL, 7),
+  (17, 8,  '水やり',              'recurring', NULL, 1),
+  (18, 8,  '収穫',                'recurring', NULL, 2),
+  (19, 8,  '追肥',                'recurring', NULL, 7),
   -- 小松菜 種まき (stage 9)
-  (20, 9,  '水やり',           'recurring', NULL, 1),
+  (20, 9,  '水やり',              'recurring', NULL, 1),
   -- 小松菜 生育 (stage 10)
-  (21, 10, '水やり',           'recurring', NULL, 2),
-  (22, 10, '間引き',           'one_time',  7,    NULL),
+  (21, 10, '水やり',              'recurring', NULL, 2),
+  (22, 10, '間引き（第1回）',     'one_time',  7,    NULL),
+  (63, 10, '間引き（第2回）',     'one_time',  14,   NULL),
   -- 小松菜 収穫 (stage 11)
-  (23, 11, '収穫',             'recurring', NULL, 3),
+  (23, 11, '収穫',                'recurring', NULL, 3),
   -- リーフレタス 種まき (stage 12)
-  (24, 12, '水やり',           'recurring', NULL, 1),
+  (24, 12, '水やり',              'recurring', NULL, 1),
   -- リーフレタス 育苗・間引き (stage 13)
-  (25, 13, '水やり',           'recurring', NULL, 2),
-  (26, 13, '間引き',           'one_time',  7,    NULL),
+  (25, 13, '水やり',              'recurring', NULL, 2),
+  (26, 13, '間引き（第1回）',     'one_time',  7,    NULL),
+  (64, 13, '間引き（第2回）',     'one_time',  14,   NULL),
   -- リーフレタス 収穫期 (stage 14)
-  (27, 14, '水やり',           'recurring', NULL, 2),
-  (28, 14, '外葉収穫',         'recurring', NULL, 4),
+  (27, 14, '水やり',              'recurring', NULL, 2),
+  (28, 14, '外葉収穫',            'recurring', NULL, 4),
   -- 二十日大根 種まき (stage 15)
-  (29, 15, '水やり',           'recurring', NULL, 1),
+  (29, 15, '水やり',              'recurring', NULL, 1),
   -- 二十日大根 生育 (stage 16)
-  (30, 16, '水やり',           'recurring', NULL, 1),
-  (31, 16, '間引き',           'one_time',  5,    NULL),
+  (30, 16, '水やり',              'recurring', NULL, 1),
+  (31, 16, '間引き',              'one_time',  5,    NULL),
   -- 二十日大根 収穫 (stage 17)
-  (32, 17, '収穫',             'one_time',  0,    NULL),
+  (32, 17, '収穫',                'one_time',  0,    NULL),
   -- ニラ 種まき・活着 (stage 18)
-  (33, 18, '水やり',           'recurring', NULL, 2),
+  (33, 18, '水やり',              'recurring', NULL, 2),
   -- ニラ 生育 (stage 19)
-  (34, 19, '水やり',           'recurring', NULL, 3),
-  (35, 19, '追肥',             'recurring', NULL, 30),
-  -- ニラ 収穫期（多年草） (stage 20)
-  (36, 20, '水やり',           'recurring', NULL, 3),
-  (37, 20, '追肥',             'recurring', NULL, 30),
-  (38, 20, '収穫',             'recurring', NULL, 30),
+  (34, 19, '水やり',              'recurring', NULL, 3),
+  (35, 19, '追肥',                'recurring', NULL, 30),
+  -- ニラ 収穫期（多年草）(stage 20) — 初年度は収穫しないこと（stage description参照）
+  (36, 20, '水やり',              'recurring', NULL, 3),
+  (37, 20, '追肥',                'recurring', NULL, 30),
+  (38, 20, '収穫',                'recurring', NULL, 30),
   -- 万能ネギ 種まき・活着 (stage 21)
-  (39, 21, '水やり',           'recurring', NULL, 2),
+  (39, 21, '水やり',              'recurring', NULL, 2),
   -- 万能ネギ 生育 (stage 22)
-  (40, 22, '水やり',           'recurring', NULL, 3),
-  (41, 22, '追肥',             'recurring', NULL, 21),
+  (40, 22, '水やり',              'recurring', NULL, 3),
+  (41, 22, '追肥',                'recurring', NULL, 21),
   -- 万能ネギ 収穫期 (stage 23)
-  (42, 23, '水やり',           'recurring', NULL, 3),
-  (43, 23, '追肥',             'recurring', NULL, 21),
+  (42, 23, '水やり',              'recurring', NULL, 3),
+  (43, 23, '追肥',                'recurring', NULL, 21),
   (44, 23, '収穫（根元3cm残し）', 'recurring', NULL, 7),
   -- タマネギ 育苗 (stage 24)
-  (45, 24, '水やり',           'recurring', NULL, 2),
+  (45, 24, '水やり',              'recurring', NULL, 2),
   -- タマネギ 定植 (stage 25)
-  (46, 25, '定植',             'one_time',  0,    NULL),
-  (47, 25, '水やり',           'recurring', NULL, 3),
+  (46, 25, '定植',                'one_time',  0,    NULL),
+  (47, 25, '水やり',              'recurring', NULL, 3),
   -- タマネギ 越冬・生育 (stage 26)
-  (48, 26, '追肥',             'recurring', NULL, 30),
-  (49, 26, '観察',             'recurring', NULL, 14),
+  -- 追肥は2回のみ。3月以降の施肥は裂球の原因になる。
+  (48, 26, '追肥（第1回）',       'one_time',  30,   NULL),
+  (62, 26, '追肥（第2回）',       'one_time',  60,   NULL),
+  (49, 26, '観察',                'recurring', NULL, 14),
   -- タマネギ 収穫・乾燥 (stage 27)
-  (50, 27, '収穫',             'one_time',  0,    NULL),
-  (51, 27, '乾燥',             'one_time',  3,    NULL),
+  (50, 27, '収穫',                'one_time',  0,    NULL),
+  (51, 27, '乾燥',                'one_time',  3,    NULL),
   -- ジャガイモ 種芋植え付け (stage 28)
-  (52, 28, '植え付け',         'one_time',  0,    NULL),
+  (52, 28, '植え付け',            'one_time',  0,    NULL),
   -- ジャガイモ 発芽・生育 (stage 29)
-  (53, 29, '水やり',           'recurring', NULL, 5),
-  (54, 29, '芽かき',           'one_time',  14,   NULL),
+  (53, 29, '水やり',              'recurring', NULL, 5),
+  -- 芽かき: 発芽後10日目が目安（14日では遅すぎる場合がある）
+  (54, 29, '芽かき',              'one_time',  10,   NULL),
   -- ジャガイモ 土寄せ・追肥 (stage 30)
-  (55, 30, '土寄せ',           'one_time',  0,    NULL),
-  (56, 30, '追肥',             'one_time',  0,    NULL),
-  (57, 30, '水やり',           'recurring', NULL, 5),
+  (55, 30, '土寄せ',              'one_time',  0,    NULL),
+  (56, 30, '追肥',                'one_time',  0,    NULL),
+  (57, 30, '水やり',              'recurring', NULL, 5),
   -- ジャガイモ 収穫 (stage 31)
-  (58, 31, '収穫',             'one_time',  0,    NULL),
-  (59, 31, '乾燥',             'one_time',  1,    NULL);
+  (58, 31, '収穫',                'one_time',  0,    NULL),
+  (59, 31, '乾燥',                'one_time',  1,    NULL);
