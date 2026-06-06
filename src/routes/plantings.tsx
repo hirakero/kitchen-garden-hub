@@ -32,6 +32,7 @@ route.get('/:id', async (c) => {
       spotId: plantings.spotId,
       spotName: spots.name,
       currentStageId: plantings.currentStageId,
+      finishedAt: plantings.finishedAt,
     })
     .from(plantings)
     .innerJoin(vegetableMaster, eq(plantings.vegetableId, vegetableMaster.id))
@@ -105,6 +106,7 @@ route.get('/:id', async (c) => {
         spotId={planting.spotId}
         stages={allStages}
         currentStageId={planting.currentStageId}
+        isFinished={planting.finishedAt != null}
         checkpoints={checkpointItems}
         recentHistory={recentHistory}
       />
