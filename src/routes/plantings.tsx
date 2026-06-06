@@ -89,10 +89,12 @@ route.get('/:id', async (c) => {
     .orderBy(desc(plantingTaskSchedules.completedAt))
     .limit(10)
 
-  const recentHistory = recentTasks.map((t) => ({
-    date: new Date(t.completedAt!).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }),
-    task: t.taskName,
-  }))
+  const recentHistory = recentTasks
+    .filter((t) => t.completedAt != null)
+    .map((t) => ({
+      date: new Date(t.completedAt!).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }),
+      task: t.taskName,
+    }))
 
   return c.html(
     <Layout title={planting.vegetableName}>

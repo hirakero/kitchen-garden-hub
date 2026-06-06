@@ -25,7 +25,7 @@ export const PlantingDetailPage: FC<PlantingDetailPageProps> = ({
   checkpoints,
   recentHistory,
 }) => {
-  const currentStageIndex = stages.findIndex((s) => s.id === currentStageId)
+  const currentStageIndex = currentStageId != null ? stages.findIndex((s) => s.id === currentStageId) : -1
   const currentStageName = stages[currentStageIndex]?.name ?? '—'
 
   return (

@@ -39,8 +39,9 @@ const MOCK_SPOTS: SpotCardData[] = [
 export const SpotList: FC<SpotListProps> = ({ spots = MOCK_SPOTS }) => (
   <div id="spot-list" class="space-y-3">
     {spots.length === 0 ? (
-      <div class="text-center py-8 text-base-content/50">
-        スポットがありません。最初のスポットを追加してください。
+      <div class="text-center py-8 text-base-content/50 space-y-2">
+        <p>スポットがありません。</p>
+        <a href="#add-spot" class="btn btn-sm btn-outline">最初のスポットを追加する</a>
       </div>
     ) : (
       spots.map((s) => <SpotCard {...s} />)

@@ -1,17 +1,26 @@
 import type { FC } from 'hono/jsx'
 
-type VegetableOption = {
-  id: number
-  name: string
-}
+type VegetableOption = { id: number; name: string }
 
 type NewPlantingPageProps = {
   spotId: number
   spotName: string
   vegetables: VegetableOption[]
+  defaultDate?: string
+  error?: string | null
 }
 
-export const NewPlantingPage: FC<NewPlantingPageProps> = ({ spotId, spotName, vegetables }) => (
+const ERROR_MESSAGES: Record<string, string> = {
+  invalid_input: '野菜と日付を正しく入力してください。',
+}
+
+export const NewPlantingPage: FC<NewPlantingPageProps> = ({
+  spotId,
+  spotName,
+  vegetables,
+  defaultDate,
+  error,
+}) => (
   <div class="space-y-6">
     <div class="flex items-center gap-2">
       <a href={`/spots/${spotId}`} class="btn btn-ghost btn-sm">← {spotName}</a>
@@ -21,6 +30,15 @@ export const NewPlantingPage: FC<NewPlantingPageProps> = ({ spotId, spotName, ve
       <div class="card-body p-4 space-y-4">
         <h1 class="card-title">野菜を植える</h1>
         <p class="text-sm text-base-content/60">スポット: {spotName}</p>
+
+        {error && (
+          <div role="alert" class="alert alert-error py-2 text-sm">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 stroke-current" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span>{ERROR_MESSAGES[error] ?? '入力内容を確認してください。'}</span>
+          </div>
+        )}
 
         <form action={`/spots/${spotId}/plantings`} method="post" class="space-y-4">
           <div class="form-control gap-1">
@@ -43,6 +61,8 @@ export const NewPlantingPage: FC<NewPlantingPageProps> = ({ spotId, spotName, ve
               id="planted_at"
               name="planted_at"
               type="date"
+              value={defaultDate}
+              max={defaultDate}
               class="input input-bordered w-full"
               required
             />

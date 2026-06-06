@@ -8,18 +8,22 @@ import { SpotsPage } from '../views/spots/index'
 import { SpotDetailPage } from '../views/spots/detail'
 import { NewPlantingPage } from '../views/plantings/new'
 
+const TODAY = () => new Date().toISOString().split('T')[0]
+
 const route = new Hono<AppType>()
 
 route.get('/', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
+  const error = c.req.query('error') ?? null
 
   const spotsData = await db
     .select({
       id: spots.id,
       name: spots.name,
       type: spots.type,
-      plantingCount: sql<number>`cast(count(case when ${plantings.finishedAt} is null then 1 end) as integer)`,
+      // Filter plantings by userId in the JOIN to prevent cross-user count leakage
+      plantingCount: sql<number>`cast(count(case when ${plantings.finishedAt} is null and ${plantings.userId} = ${userId} then 1 end) as integer)`,
     })
     .from(spots)
     .leftJoin(plantings, eq(plantings.spotId, spots.id))
@@ -29,7 +33,7 @@ route.get('/', async (c) => {
 
   return c.html(
     <Layout title="栽培スポット">
-      <SpotsPage spots={spotsData} />
+      <SpotsPage spots={spotsData} error={error} />
     </Layout>
   )
 })
@@ -40,7 +44,7 @@ route.post('/', async (c) => {
   const body = await c.req.parseBody()
   const name = String(body.name ?? '').trim()
   const type = body.type === 'ground' ? 'ground' : 'planter'
-  if (!name) return c.redirect('/spots')
+  if (!name) return c.redirect('/spots?error=missing_name')
 
   await db.insert(spots).values({ userId, name, type })
   return c.redirect('/spots')
@@ -76,17 +80,12 @@ route.get('/:id', async (c) => {
     vegetableName: p.vegetableName,
     spotName: spot.name,
     stageName: p.stageName ?? '—',
-    stageOrder: Math.max(0, (p.stageOrder ?? 1) - 1), // 1-indexed → 0-indexed for badge colors
+    stageOrder: Math.max(0, (p.stageOrder ?? 1) - 1),
   }))
 
   return c.html(
     <Layout title={spot.name}>
-      <SpotDetailPage
-        id={spot.id}
-        name={spot.name}
-        type={spot.type}
-        plantings={plantingCards}
-      />
+      <SpotDetailPage id={spot.id} name={spot.name} type={spot.type} plantings={plantingCards} />
     </Layout>
   )
 })
@@ -95,6 +94,7 @@ route.get('/:id/plantings/new', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
   const id = Number(c.req.param('id'))
+  const error = c.req.query('error') ?? null
 
   const spot = await db
     .select()
@@ -110,7 +110,13 @@ route.get('/:id/plantings/new', async (c) => {
 
   return c.html(
     <Layout title="野菜を植える">
-      <NewPlantingPage spotId={spot.id} spotName={spot.name} vegetables={vegetables} />
+      <NewPlantingPage
+        spotId={spot.id}
+        spotName={spot.name}
+        vegetables={vegetables}
+        defaultDate={TODAY()}
+        error={error}
+      />
     </Layout>
   )
 })
@@ -132,7 +138,13 @@ route.post('/:id/plantings', async (c) => {
   const plantedAtStr = String(body.planted_at ?? '')
   const notes = String(body.notes ?? '').trim() || null
 
-  if (!vegetableId || !plantedAtStr) return c.redirect(`/spots/${spotId}/plantings/new`)
+  const isValidVegetableId = vegetableId > 0 && Number.isInteger(vegetableId)
+  const plantedAtDate = new Date(plantedAtStr)
+  const isValidDate = Boolean(plantedAtStr) && !isNaN(plantedAtDate.getTime())
+
+  if (!isValidVegetableId || !isValidDate) {
+    return c.redirect(`/spots/${spotId}/plantings/new?error=invalid_input`)
+  }
 
   const firstStage = await db
     .select({ id: stageMaster.id })
@@ -147,7 +159,7 @@ route.post('/:id/plantings', async (c) => {
     spotId,
     vegetableId,
     currentStageId: firstStage?.id ?? null,
-    plantedAt: new Date(plantedAtStr),
+    plantedAt: plantedAtDate,
     notes,
   })
 
