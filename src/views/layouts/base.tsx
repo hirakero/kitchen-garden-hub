@@ -9,6 +9,9 @@ export const Layout: FC<{ title?: string; children?: Child }> = ({ title = 'Kitc
       <link href="https://cdn.jsdelivr.net/npm/daisyui@5/daisyui.css" rel="stylesheet" />
       <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
       <script src="https://unpkg.com/htmx.org@2"></script>
+      <style>{`
+        .checkbox.htmx-request { opacity: 0.4; pointer-events: none; cursor: wait; }
+      `}</style>
     </head>
     <body class="bg-base-200 min-h-screen">
       <nav class="navbar bg-base-100 shadow-sm sticky top-0 z-10">
