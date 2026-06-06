@@ -1,26 +1,17 @@
 import type { FC } from 'hono/jsx'
 
-type NewPlantingPageProps = {
-  spotId?: number
-  spotName?: string
+type VegetableOption = {
+  id: number
+  name: string
 }
 
-const MOCK_VEGETABLES = [
-  { id: 1, name: 'ミニトマト' },
-  { id: 2, name: 'きゅうり' },
-  { id: 3, name: '小松菜' },
-  { id: 4, name: 'リーフレタス' },
-  { id: 5, name: '二十日大根' },
-  { id: 6, name: 'ニラ' },
-  { id: 7, name: '万能ネギ' },
-  { id: 8, name: 'タマネギ' },
-  { id: 9, name: 'ジャガイモ' },
-]
+type NewPlantingPageProps = {
+  spotId: number
+  spotName: string
+  vegetables: VegetableOption[]
+}
 
-export const NewPlantingPage: FC<NewPlantingPageProps> = ({
-  spotId = 1,
-  spotName = 'ベランダプランター左',
-}) => (
+export const NewPlantingPage: FC<NewPlantingPageProps> = ({ spotId, spotName, vegetables }) => (
   <div class="space-y-6">
     <div class="flex items-center gap-2">
       <a href={`/spots/${spotId}`} class="btn btn-ghost btn-sm">← {spotName}</a>
@@ -38,7 +29,7 @@ export const NewPlantingPage: FC<NewPlantingPageProps> = ({
             </label>
             <select id="vegetable_id" name="vegetable_id" class="select select-bordered w-full" required>
               <option value="">-- 野菜を選んでください --</option>
-              {MOCK_VEGETABLES.map((v) => (
+              {vegetables.map((v) => (
                 <option value={v.id}>{v.name}</option>
               ))}
             </select>

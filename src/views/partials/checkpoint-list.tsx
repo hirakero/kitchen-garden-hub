@@ -5,15 +5,16 @@ export type CheckpointItemData = {
   name: string
   completedAt?: string
   isCurrent?: boolean
+  plantingId?: number
 }
 
-const CheckpointItem: FC<CheckpointItemData> = ({ id, name, completedAt, isCurrent }) => (
+const CheckpointItem: FC<CheckpointItemData> = ({ id, name, completedAt, isCurrent, plantingId }) => (
   <div class={`rounded-lg ${isCurrent ? 'bg-primary/10 border border-primary/30' : ''}`}>
     {isCurrent ? (
       // ボタンを行全体に広げて1点で発火、div には htmx なし
       <button
         class="flex items-center gap-3 p-3 w-full text-left cursor-pointer active:bg-primary/20 transition-colors"
-        {...{ 'hx-get': `/checkpoints/${id}/confirm`, 'hx-target': '#modal-container', 'hx-swap': 'innerHTML' }}
+        {...{ 'hx-get': `/checkpoints/${id}/confirm?plantingId=${plantingId ?? ''}`, 'hx-target': '#modal-container', 'hx-swap': 'innerHTML' }}
       >
         <div class="w-6 h-6 rounded-full border-2 border-primary flex items-center justify-center shrink-0" />
         <div class="flex-1">

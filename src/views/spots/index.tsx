@@ -1,25 +1,22 @@
 import type { FC } from 'hono/jsx'
-import { SpotList } from '../partials/spot-list'
+import { SpotList, type SpotCardData } from '../partials/spot-list'
 
-export const SpotsPage: FC = () => (
+type SpotsPageProps = {
+  spots?: SpotCardData[]
+}
+
+export const SpotsPage: FC<SpotsPageProps> = ({ spots = [] }) => (
   <div class="space-y-6">
     <div class="flex items-center justify-between">
       <h1 class="text-xl font-bold">栽培スポット</h1>
     </div>
 
-    <SpotList />
+    <SpotList spots={spots} />
 
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body p-4">
         <h2 class="card-title text-base">スポットを追加</h2>
-        <form
-          {...{
-            'hx-post': '/spots',
-            'hx-target': '#spot-list',
-            'hx-swap': 'outerHTML',
-          }}
-          class="space-y-3"
-        >
+        <form action="/spots" method="post" class="space-y-3">
           <div class="form-control">
             <input
               name="name"
