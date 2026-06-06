@@ -3,6 +3,7 @@ import { eq, and, isNull, asc, desc, sql } from 'drizzle-orm'
 import type { AppType } from '../app'
 import { getDb } from '../db'
 import { spots, plantings, vegetableMaster, stageMaster } from '../db/schema'
+import { generateTaskSchedules } from './checkpoints'
 import { Layout } from '../views/layouts/base'
 import { SpotsPage } from '../views/spots/index'
 import { SpotDetailPage } from '../views/spots/detail'
@@ -154,14 +155,21 @@ route.post('/:id/plantings', async (c) => {
     .limit(1)
     .get()
 
-  await db.insert(plantings).values({
-    userId,
-    spotId,
-    vegetableId,
-    currentStageId: firstStage?.id ?? null,
-    plantedAt: plantedAtDate,
-    notes,
-  })
+  const [newPlanting] = await db
+    .insert(plantings)
+    .values({
+      userId,
+      spotId,
+      vegetableId,
+      currentStageId: firstStage?.id ?? null,
+      plantedAt: plantedAtDate,
+      notes,
+    })
+    .returning({ id: plantings.id })
+
+  if (firstStage && newPlanting) {
+    await generateTaskSchedules(db, newPlanting.id, firstStage.id)
+  }
 
   return c.redirect(`/spots/${spotId}`)
 })
