@@ -1,5 +1,6 @@
 import { app } from './app'
 import type { Bindings } from './app'
+import { dailyNotify } from './cron/daily-notify'
 
 export default {
   fetch: app.fetch,
@@ -8,7 +9,6 @@ export default {
     env: Bindings,
     _ctx: ExecutionContext,
   ): Promise<void> {
-    const { dailyNotify } = await import('./cron/daily-notify')
     await dailyNotify(env)
   },
 }

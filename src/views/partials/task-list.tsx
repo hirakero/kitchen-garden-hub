@@ -1,16 +1,10 @@
 import type { FC } from 'hono/jsx'
+import type { DayGroup } from '../../lib/task-groups'
 import { TaskItem, type TaskItemData } from './task-item'
 import { TaskListEmpty } from './task-list-empty'
 
-type DayGroup = {
-  label: string
-  isToday: boolean
-  isPast?: boolean
-  tasks: TaskItemData[]
-}
-
 type TaskListProps = {
-  groups?: DayGroup[]
+  groups: DayGroup[]
 }
 
 // Completed tasks are hidden from the dashboard.
@@ -18,7 +12,7 @@ type TaskListProps = {
 const filterTasks = (tasks: TaskItemData[], isToday: boolean, isPast?: boolean) =>
   tasks.filter((t) => !t.completedAt && (isToday || !isPast || t.taskType === 'one_time'))
 
-export const TaskList: FC<TaskListProps> = ({ groups = [] }) => {
+export const TaskList: FC<TaskListProps> = ({ groups }) => {
   const visibleGroups = groups
     .map((g) => ({ ...g, tasks: filterTasks(g.tasks, g.isToday, g.isPast) }))
     .filter((g) => g.tasks.length > 0)

@@ -8,9 +8,10 @@ import {
   plantingCheckpointLogs,
   plantingTaskSchedules,
   stageMaster,
-  taskMaster,
   vegetableMaster,
 } from '../db/schema'
+import { generateTaskSchedules } from '../lib/task-scheduler'
+import { positiveInt } from '../lib/params'
 import { CheckpointConfirmModal } from '../views/partials/checkpoint-confirm-modal'
 
 const route = new Hono<AppType>()
@@ -18,10 +19,10 @@ const route = new Hono<AppType>()
 route.get('/:id/confirm', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const checkpointId = Number(c.req.param('id'))
-  const plantingId = Number(c.req.query('plantingId'))
+  const checkpointId = positiveInt(c.req.param('id'))
+  const plantingId = positiveInt(c.req.query('plantingId'))
 
-  if (!Number.isInteger(checkpointId) || checkpointId <= 0 || !Number.isInteger(plantingId) || plantingId <= 0) {
+  if (checkpointId === null || plantingId === null) {
     return c.text('Bad Request', 400)
   }
 
@@ -72,10 +73,10 @@ route.get('/:id/confirm', async (c) => {
 route.post('/:id/complete', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const checkpointId = Number(c.req.param('id'))
-  const plantingId = Number(c.req.query('plantingId'))
+  const checkpointId = positiveInt(c.req.param('id'))
+  const plantingId = positiveInt(c.req.query('plantingId'))
 
-  if (!Number.isInteger(checkpointId) || checkpointId <= 0 || !Number.isInteger(plantingId) || plantingId <= 0) {
+  if (checkpointId === null || plantingId === null) {
     return c.text('Bad Request', 400)
   }
 
@@ -161,35 +162,3 @@ route.post('/:id/complete', async (c) => {
 })
 
 export default route
-
-export async function generateTaskSchedules(
-  db: ReturnType<typeof getDb>,
-  plantingId: number,
-  stageId: number,
-) {
-  const tasks = await db.select().from(taskMaster).where(eq(taskMaster.stageId, stageId))
-
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const DAYS_AHEAD = 60
-
-  const schedules: { plantingId: number; taskMasterId: number; scheduledDate: Date }[] = []
-
-  for (const task of tasks) {
-    if (task.taskType === 'one_time') {
-      const d = new Date(today)
-      d.setDate(today.getDate() + (task.daysFromStageStart ?? 0))
-      schedules.push({ plantingId, taskMasterId: task.id, scheduledDate: d })
-    } else if (task.taskType === 'recurring' && task.intervalDays && task.intervalDays > 0) {
-      for (let offset = 0; offset <= DAYS_AHEAD; offset += task.intervalDays) {
-        const d = new Date(today)
-        d.setDate(today.getDate() + offset)
-        schedules.push({ plantingId, taskMasterId: task.id, scheduledDate: d })
-      }
-    }
-  }
-
-  if (schedules.length > 0) {
-    await db.insert(plantingTaskSchedules).values(schedules)
-  }
-}

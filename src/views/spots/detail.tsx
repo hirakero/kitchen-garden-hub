@@ -1,5 +1,6 @@
 import type { FC } from 'hono/jsx'
 import { PlantingCard, type PlantingCardData } from '../partials/planting-card'
+import { spotTypeLabel } from '../partials/spot-list'
 
 type SpotDetailProps = {
   id: number
@@ -7,8 +8,6 @@ type SpotDetailProps = {
   type: 'ground' | 'planter'
   plantings: PlantingCardData[]
 }
-
-const typeLabel = { ground: '地植え', planter: 'プランター' }
 
 export const SpotDetailPage: FC<SpotDetailProps> = ({ id, name, type, plantings }) => (
   <div class="space-y-6">
@@ -20,7 +19,7 @@ export const SpotDetailPage: FC<SpotDetailProps> = ({ id, name, type, plantings 
       <div class="card-body p-4">
         <div class="flex items-center justify-between">
           <h1 class="text-xl font-bold">{name}</h1>
-          <span class="text-sm text-base-content/50 bg-base-200 rounded px-2 py-0.5">{typeLabel[type]}</span>
+          <span class="text-sm text-base-content/50 bg-base-200 rounded px-2 py-0.5">{spotTypeLabel[type]}</span>
         </div>
       </div>
     </div>

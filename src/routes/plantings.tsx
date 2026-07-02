@@ -12,6 +12,7 @@ import {
   plantingTaskSchedules,
   taskMaster,
 } from '../db/schema'
+import { formatDateJa } from '../lib/date'
 import { Layout } from '../views/layouts/base'
 import { PlantingDetailPage } from '../views/plantings/detail'
 import { PlantingCard } from '../views/partials/planting-card'
@@ -75,7 +76,7 @@ route.get('/:id', async (c) => {
         name: cp.name,
         plantingId: id,
         completedAt: log
-          ? new Date(log.completedAt).toLocaleDateString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit' })
+          ? formatDateJa(new Date(log.completedAt), { year: 'numeric', month: '2-digit', day: '2-digit' })
           : undefined,
         isCurrent: isCurrentStage && !log,
       },
@@ -93,7 +94,7 @@ route.get('/:id', async (c) => {
   const recentHistory = recentTasks
     .filter((t) => t.completedAt != null)
     .map((t) => ({
-      date: new Date(t.completedAt!).toLocaleDateString('ja-JP', { month: '2-digit', day: '2-digit' }),
+      date: formatDateJa(new Date(t.completedAt!), { month: '2-digit', day: '2-digit' }),
       task: t.taskName,
     }))
 
@@ -142,7 +143,7 @@ route.get('/:id/card', async (c) => {
       vegetableName={planting.vegetableName}
       spotName={planting.spotName}
       stageName={planting.stageName ?? '—'}
-      stageOrder={Math.max(0, (planting.stageOrder ?? 1) - 1)}
+      stageOrder={planting.stageOrder ?? 0}
     />
   )
 })

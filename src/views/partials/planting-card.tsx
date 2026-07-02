@@ -5,12 +5,13 @@ export type PlantingCardData = {
   vegetableName: string
   spotName: string
   stageName: string
+  /** stage_master.order_index（1始まり）。ステージ未設定は 0 */
   stageOrder: number
   nextTask?: string
 }
 
 const STAGE_BADGE_COLORS = ['badge-ghost', 'badge-info', 'badge-primary', 'badge-warning', 'badge-success']
-const stageBadgeColor = (order: number) => STAGE_BADGE_COLORS[order] ?? 'badge-ghost'
+const stageBadgeColor = (orderIndex: number) => STAGE_BADGE_COLORS[orderIndex - 1] ?? 'badge-ghost'
 
 export const PlantingCard: FC<PlantingCardData> = ({ id, vegetableName, spotName, stageName, stageOrder, nextTask }) => (
   <a
