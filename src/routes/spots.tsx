@@ -1,15 +1,32 @@
 import { Hono } from 'hono'
-import { eq, and, isNull, asc, desc, sql } from 'drizzle-orm'
+import { eq, and, isNull, asc, desc, like, sql, type SQL } from 'drizzle-orm'
 import type { AppType } from '../app'
-import { getDb } from '../db'
+import { getDb, type Db } from '../db'
 import { spots, plantings, vegetableMaster, stageMaster } from '../db/schema'
 import { generateTaskSchedules } from './checkpoints'
 import { Layout } from '../views/layouts/base'
 import { SpotsPage } from '../views/spots/index'
 import { SpotDetailPage } from '../views/spots/detail'
 import { NewPlantingPage } from '../views/plantings/new'
+import { VegetableSelect } from '../views/partials/vegetable-select'
 
 const TODAY = () => new Date().toISOString().split('T')[0]
+
+const CATEGORIES = ['vegetable', 'fruit'] as const
+type Category = (typeof CATEGORIES)[number]
+
+function searchVegetables(db: Db, q: string, category: string) {
+  const conds: SQL[] = []
+  if (q) conds.push(like(vegetableMaster.name, `%${q}%`))
+  if ((CATEGORIES as readonly string[]).includes(category)) {
+    conds.push(eq(vegetableMaster.category, category as Category))
+  }
+  return db
+    .select({ id: vegetableMaster.id, name: vegetableMaster.name })
+    .from(vegetableMaster)
+    .where(conds.length > 0 ? and(...conds) : undefined)
+    .orderBy(asc(vegetableMaster.id))
+}
 
 const route = new Hono<AppType>()
 
@@ -104,10 +121,7 @@ route.get('/:id/plantings/new', async (c) => {
     .get()
   if (!spot) return c.notFound()
 
-  const vegetables = await db
-    .select({ id: vegetableMaster.id, name: vegetableMaster.name })
-    .from(vegetableMaster)
-    .orderBy(asc(vegetableMaster.id))
+  const vegetables = await searchVegetables(db, '', '')
 
   return c.html(
     <Layout title="野菜を植える">
@@ -120,6 +134,15 @@ route.get('/:id/plantings/new', async (c) => {
       />
     </Layout>
   )
+})
+
+// HTMX: 植物の絞り込み（カテゴリタブ・名前検索） → select を差し替え
+route.get('/:id/plantings/vegetable-options', async (c) => {
+  const db = getDb(c.env.DB)
+  const q = (c.req.query('q') ?? '').trim()
+  const category = c.req.query('category') ?? ''
+  const vegetables = await searchVegetables(db, q, category)
+  return c.html(<VegetableSelect vegetables={vegetables} />)
 })
 
 route.post('/:id/plantings', async (c) => {

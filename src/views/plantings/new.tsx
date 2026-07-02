@@ -1,6 +1,11 @@
 import type { FC } from 'hono/jsx'
+import { VegetableSelect, type VegetableOption } from '../partials/vegetable-select'
 
-type VegetableOption = { id: number; name: string }
+const CATEGORY_TABS = [
+  { value: '', label: 'すべて' },
+  { value: 'vegetable', label: '野菜' },
+  { value: 'fruit', label: '果物' },
+]
 
 type NewPlantingPageProps = {
   spotId: number
@@ -41,16 +46,42 @@ export const NewPlantingPage: FC<NewPlantingPageProps> = ({
         )}
 
         <form action={`/spots/${spotId}/plantings`} method="post" class="space-y-4">
-          <div class="form-control gap-1">
+          <div class="form-control gap-2">
             <label class="label" for="vegetable_id">
-              <span class="label-text font-medium">野菜を選択</span>
+              <span class="label-text font-medium">植物を選択</span>
             </label>
-            <select id="vegetable_id" name="vegetable_id" class="select select-bordered w-full" required>
-              <option value="">-- 野菜を選んでください --</option>
-              {vegetables.map((v) => (
-                <option value={v.id}>{v.name}</option>
+            <div class="join" role="group" aria-label="カテゴリで絞り込み">
+              {CATEGORY_TABS.map((tab) => (
+                <input
+                  type="radio"
+                  name="category"
+                  value={tab.value}
+                  aria-label={tab.label}
+                  class="join-item btn btn-sm"
+                  checked={tab.value === ''}
+                  {...{
+                    'hx-get': `/spots/${spotId}/plantings/vegetable-options`,
+                    'hx-include': "input[name='q']",
+                    'hx-target': '#vegetable_id',
+                    'hx-swap': 'outerHTML',
+                  }}
+                />
               ))}
-            </select>
+            </div>
+            <input
+              type="search"
+              name="q"
+              placeholder="名前で絞り込み（例: トマト）"
+              class="input input-bordered w-full"
+              {...{
+                'hx-get': `/spots/${spotId}/plantings/vegetable-options`,
+                'hx-trigger': 'input changed delay:300ms, search',
+                'hx-include': "input[name='category']:checked",
+                'hx-target': '#vegetable_id',
+                'hx-swap': 'outerHTML',
+              }}
+            />
+            <VegetableSelect vegetables={vegetables} />
           </div>
 
           <div class="form-control gap-1">

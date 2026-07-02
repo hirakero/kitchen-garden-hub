@@ -861,3 +861,10 @@ INSERT OR IGNORE INTO task_master (id, stage_id, name, task_type, days_from_stag
   (258, 113, '水やり',             'recurring', NULL, 2),
   (259, 113, '収穫',               'recurring', NULL, 5),
   (260, 113, '追肥',               'recurring', NULL, 21);
+
+-- ================================================================
+-- category (Phase 1.5 植物の絞り込み用)
+-- デフォルトは 'vegetable'。果物3種のみ 'fruit' に更新する。
+-- （UPDATEなので既存DB・新規DBどちらに対しても安全に適用できる）
+-- ================================================================
+UPDATE vegetable_master SET category = 'fruit' WHERE id IN (30, 31, 32);
