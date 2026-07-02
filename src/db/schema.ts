@@ -6,6 +6,9 @@ import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 export const vegetableMaster = sqliteTable('vegetable_master', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
+  category: text('category', { enum: ['vegetable', 'fruit'] })
+    .notNull()
+    .default('vegetable'),
   description: text('description'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()

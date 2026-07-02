@@ -94,7 +94,7 @@ route.post('/:id/complete', async (c) => {
 
   // Already finished — redirect idempotently
   if (planting.finishedAt) {
-    c.header('HX-Redirect', `/plantings/${plantingId}#stage-progress`)
+    c.header('HX-Redirect', `/plantings/${plantingId}`)
     return c.body(null, 200)
   }
 
@@ -119,7 +119,7 @@ route.post('/:id/complete', async (c) => {
     .get()
 
   if (existing) {
-    c.header('HX-Redirect', `/plantings/${plantingId}#stage-progress`)
+    c.header('HX-Redirect', `/plantings/${plantingId}`)
     return c.body(null, 200)
   }
 
@@ -156,7 +156,7 @@ route.post('/:id/complete', async (c) => {
     await generateTaskSchedules(db, plantingId, nextStage.id)
   }
 
-  c.header('HX-Redirect', `/plantings/${plantingId}#stage-progress`)
+  c.header('HX-Redirect', `/plantings/${plantingId}`)
   return c.body(null, 200)
 })
 

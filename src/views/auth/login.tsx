@@ -32,7 +32,7 @@ export const LoginPage: FC<{ error?: string | null }> = ({ error }) => (
           <button
             class="btn btn-primary w-full"
             id="signin-btn"
-            {...{ onclick: "this.classList.add('btn-disabled');this.querySelector('span').className='loading loading-spinner loading-sm';window.location='/api/auth/signin/google'" }}
+            {...{ onclick: "var b=this;b.classList.add('btn-disabled');b.querySelector('span').className='loading loading-spinner loading-sm';fetch('/api/auth/sign-in/social',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:'google',callbackURL:'/'})}).then(function(r){return r.json()}).then(function(d){window.location.href=d.url}).catch(function(){b.classList.remove('btn-disabled');b.querySelector('span').className='';b.querySelector('span').textContent='Googleでログイン'})" }}
           >
             <span>Googleでログイン</span>
           </button>

@@ -7,6 +7,7 @@ compatibility_flags = ["nodejs_compat"]
 binding = "DB"
 database_name = "kitchen-garden-hub"
 database_id = "placeholder-replace-after-wrangler-d1-create"
+migrations_dir = "drizzle/migrations"
 
 [triggers]
 crons = ["0 22 * * *"]  # UTC 22:00 = JST 7:00

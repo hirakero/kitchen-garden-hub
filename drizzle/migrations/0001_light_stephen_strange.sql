@@ -1,0 +1,1 @@
+ALTER TABLE `vegetable_master` ADD `category` text DEFAULT 'vegetable' NOT NULL;
