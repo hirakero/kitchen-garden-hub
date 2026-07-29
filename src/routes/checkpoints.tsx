@@ -10,8 +10,9 @@ import {
   stageMaster,
   vegetableMaster,
 } from '../db/schema'
-import { generateTaskSchedules } from '../lib/task-scheduler'
+import { buildTaskSchedules } from '../lib/task-scheduler'
 import { positiveInt } from '../lib/params'
+import { hxRedirect } from '../lib/htmx'
 import { CheckpointConfirmModal } from '../views/partials/checkpoint-confirm-modal'
 
 const route = new Hono<AppType>()
@@ -95,8 +96,7 @@ route.post('/:id/complete', async (c) => {
 
   // Already finished — redirect idempotently
   if (planting.finishedAt) {
-    c.header('HX-Redirect', `/plantings/${plantingId}`)
-    return c.body(null, 200)
+    return hxRedirect(c, `/plantings/${plantingId}`)
   }
 
   const cp = await db
@@ -120,8 +120,7 @@ route.post('/:id/complete', async (c) => {
     .get()
 
   if (existing) {
-    c.header('HX-Redirect', `/plantings/${plantingId}`)
-    return c.body(null, 200)
+    return hxRedirect(c, `/plantings/${plantingId}`)
   }
 
   const allStages = await db
@@ -133,8 +132,13 @@ route.post('/:id/complete', async (c) => {
   const currentIdx = allStages.findIndex((s) => s.id === planting.currentStageId)
   const nextStage = currentIdx >= 0 && currentIdx < allStages.length - 1 ? allStages[currentIdx + 1] : null
 
-  // Delete uncompleted/unskipped task schedules from the previous stage
-  await db
+  // Compute the next stage's schedule rows up front so the whole state transition
+  // (drop old schedules, advance stage, log checkpoint, seed new schedules) commits
+  // atomically — a partial failure must never leave the checkpoint logged with no
+  // schedules generated for the stage it just advanced into.
+  const newSchedules = nextStage ? await buildTaskSchedules(db, plantingId, nextStage.id) : []
+
+  const deleteStaleSchedules = db
     .delete(plantingTaskSchedules)
     .where(
       and(
@@ -144,21 +148,26 @@ route.post('/:id/complete', async (c) => {
       )
     )
 
-  if (nextStage) {
-    await db.update(plantings).set({ currentStageId: nextStage.id }).where(eq(plantings.id, plantingId))
+  const advanceStage = nextStage
+    ? db.update(plantings).set({ currentStageId: nextStage.id }).where(eq(plantings.id, plantingId))
+    : db.update(plantings).set({ currentStageId: null, finishedAt: new Date() }).where(eq(plantings.id, plantingId))
+
+  const logCheckpoint = db
+    .insert(plantingCheckpointLogs)
+    .values({ plantingId, checkpointMasterId: checkpointId })
+
+  if (newSchedules.length > 0) {
+    await db.batch([
+      deleteStaleSchedules,
+      advanceStage,
+      logCheckpoint,
+      db.insert(plantingTaskSchedules).values(newSchedules),
+    ])
   } else {
-    await db.update(plantings).set({ currentStageId: null, finishedAt: new Date() }).where(eq(plantings.id, plantingId))
+    await db.batch([deleteStaleSchedules, advanceStage, logCheckpoint])
   }
 
-  // Log inserted last as the commit point — earlier steps can be safely retried if they failed
-  await db.insert(plantingCheckpointLogs).values({ plantingId, checkpointMasterId: checkpointId })
-
-  if (nextStage) {
-    await generateTaskSchedules(db, plantingId, nextStage.id)
-  }
-
-  c.header('HX-Redirect', `/plantings/${plantingId}`)
-  return c.body(null, 200)
+  return hxRedirect(c, `/plantings/${plantingId}`)
 })
 
 export default route

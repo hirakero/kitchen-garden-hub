@@ -13,6 +13,7 @@ import {
   taskMaster,
 } from '../db/schema'
 import { formatDateJa } from '../lib/date'
+import { positiveInt } from '../lib/params'
 import { Layout } from '../views/layouts/base'
 import { PlantingDetailPage } from '../views/plantings/detail'
 import { PlantingCard } from '../views/partials/planting-card'
@@ -23,7 +24,8 @@ const route = new Hono<AppType>()
 route.get('/:id', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const id = Number(c.req.param('id'))
+  const id = positiveInt(c.req.param('id'))
+  if (id === null) return c.notFound()
 
   const planting = await db
     .select({
@@ -118,7 +120,8 @@ route.get('/:id', async (c) => {
 route.get('/:id/card', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const id = Number(c.req.param('id'))
+  const id = positiveInt(c.req.param('id'))
+  if (id === null) return c.notFound()
 
   const planting = await db
     .select({

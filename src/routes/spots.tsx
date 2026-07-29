@@ -5,6 +5,7 @@ import { getDb, type Db } from '../db'
 import { spots, plantings, vegetableMaster, stageMaster } from '../db/schema'
 import { generateTaskSchedules } from '../lib/task-scheduler'
 import { todayJstDateKey } from '../lib/date'
+import { positiveInt } from '../lib/params'
 import { Layout } from '../views/layouts/base'
 import { SpotsPage } from '../views/spots/index'
 import { SpotDetailPage } from '../views/spots/detail'
@@ -79,7 +80,8 @@ route.post('/', async (c) => {
 route.get('/:id', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const id = Number(c.req.param('id'))
+  const id = positiveInt(c.req.param('id'))
+  if (id === null) return c.notFound()
 
   const spot = await findSpotOwned(db, id, userId)
   if (!spot) return c.notFound()
@@ -115,8 +117,9 @@ route.get('/:id', async (c) => {
 route.get('/:id/plantings/new', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const id = Number(c.req.param('id'))
+  const id = positiveInt(c.req.param('id'))
   const error = c.req.query('error') ?? null
+  if (id === null) return c.notFound()
 
   const spot = await findSpotOwned(db, id, userId)
   if (!spot) return c.notFound()
@@ -148,7 +151,8 @@ route.get('/:id/plantings/vegetable-options', async (c) => {
 route.post('/:id/plantings', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const spotId = Number(c.req.param('id'))
+  const spotId = positiveInt(c.req.param('id'))
+  if (spotId === null) return c.notFound()
 
   const spot = await findSpotOwned(db, spotId, userId)
   if (!spot) return c.notFound()
