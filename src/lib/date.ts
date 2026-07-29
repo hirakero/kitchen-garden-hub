@@ -1,17 +1,20 @@
 const JST_OFFSET_SEC = 9 * 60 * 60
 const JST_OFFSET_MS = JST_OFFSET_SEC * 1000
 
-/** JSTの「今日の00:00:00」をUnixエポック（秒）で返す */
-export function todayJstStartSec(): number {
-  const nowSec = Math.floor(Date.now() / 1000)
+/**
+ * JSTの「今日の00:00:00」をUnixエポック（秒）で返す。
+ * nowMs は日付境界のテストのために注入可能（省略時は現在時刻）。
+ */
+export function todayJstStartSec(nowMs: number = Date.now()): number {
+  const nowSec = Math.floor(nowMs / 1000)
   const jstSec = nowSec + JST_OFFSET_SEC
   const dayStartJst = jstSec - (jstSec % 86400)
   return dayStartJst - JST_OFFSET_SEC
 }
 
 /** JSTのN日後00:00:00をUnixエポック（秒）で返す */
-export function jstDayStartSec(daysFromToday: number): number {
-  return todayJstStartSec() + daysFromToday * 86400
+export function jstDayStartSec(daysFromToday: number, nowMs: number = Date.now()): number {
+  return todayJstStartSec(nowMs) + daysFromToday * 86400
 }
 
 /** DateをJSTのカレンダー日キー（例: "2026-06-06"）に変換する */

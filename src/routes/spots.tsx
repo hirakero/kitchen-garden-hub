@@ -190,6 +190,10 @@ route.post('/:id/plantings', async (c) => {
     })
     .returning({ id: plantings.id })
 
+  // Not batched with the insert above: schedule rows need newPlanting.id, which only
+  // exists after the insert commits. Worst case on failure here is a planting with no
+  // schedules yet (recoverable, non-destructive) — unlike checkpoint completion this
+  // never deletes existing data, so the atomicity tradeoff isn't worth the complexity.
   if (firstStage && newPlanting) {
     await generateTaskSchedules(db, newPlanting.id, firstStage.id)
   }
