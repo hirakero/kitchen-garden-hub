@@ -3,17 +3,26 @@ import { eq, and, isNull, asc, desc, like, sql, type SQL } from 'drizzle-orm'
 import type { AppType } from '../app'
 import { getDb, type Db } from '../db'
 import { spots, plantings, vegetableMaster, stageMaster } from '../db/schema'
-import { generateTaskSchedules } from './checkpoints'
+import { generateTaskSchedules } from '../lib/task-scheduler'
+import { todayJstDateKey } from '../lib/date'
+import { positiveInt } from '../lib/params'
 import { Layout } from '../views/layouts/base'
 import { SpotsPage } from '../views/spots/index'
 import { SpotDetailPage } from '../views/spots/detail'
 import { NewPlantingPage } from '../views/plantings/new'
 import { VegetableSelect } from '../views/partials/vegetable-select'
 
-const TODAY = () => new Date().toISOString().split('T')[0]
-
 const CATEGORIES = ['vegetable', 'fruit'] as const
 type Category = (typeof CATEGORIES)[number]
+
+// 本人所有のスポットを取得（全ハンドラー共通の所有チェック）
+function findSpotOwned(db: Db, id: number, userId: string) {
+  return db
+    .select()
+    .from(spots)
+    .where(and(eq(spots.id, id), eq(spots.userId, userId)))
+    .get()
+}
 
 function searchVegetables(db: Db, q: string, category: string) {
   const conds: SQL[] = []
@@ -71,13 +80,10 @@ route.post('/', async (c) => {
 route.get('/:id', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const id = Number(c.req.param('id'))
+  const id = positiveInt(c.req.param('id'))
+  if (id === null) return c.notFound()
 
-  const spot = await db
-    .select()
-    .from(spots)
-    .where(and(eq(spots.id, id), eq(spots.userId, userId)))
-    .get()
+  const spot = await findSpotOwned(db, id, userId)
   if (!spot) return c.notFound()
 
   const spotPlantings = await db
@@ -98,7 +104,7 @@ route.get('/:id', async (c) => {
     vegetableName: p.vegetableName,
     spotName: spot.name,
     stageName: p.stageName ?? '—',
-    stageOrder: Math.max(0, (p.stageOrder ?? 1) - 1),
+    stageOrder: p.stageOrder ?? 0,
   }))
 
   return c.html(
@@ -111,14 +117,11 @@ route.get('/:id', async (c) => {
 route.get('/:id/plantings/new', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const id = Number(c.req.param('id'))
+  const id = positiveInt(c.req.param('id'))
   const error = c.req.query('error') ?? null
+  if (id === null) return c.notFound()
 
-  const spot = await db
-    .select()
-    .from(spots)
-    .where(and(eq(spots.id, id), eq(spots.userId, userId)))
-    .get()
+  const spot = await findSpotOwned(db, id, userId)
   if (!spot) return c.notFound()
 
   const vegetables = await searchVegetables(db, '', '')
@@ -129,7 +132,7 @@ route.get('/:id/plantings/new', async (c) => {
         spotId={spot.id}
         spotName={spot.name}
         vegetables={vegetables}
-        defaultDate={TODAY()}
+        defaultDate={todayJstDateKey()}
         error={error}
       />
     </Layout>
@@ -148,13 +151,10 @@ route.get('/:id/plantings/vegetable-options', async (c) => {
 route.post('/:id/plantings', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
-  const spotId = Number(c.req.param('id'))
+  const spotId = positiveInt(c.req.param('id'))
+  if (spotId === null) return c.notFound()
 
-  const spot = await db
-    .select()
-    .from(spots)
-    .where(and(eq(spots.id, spotId), eq(spots.userId, userId)))
-    .get()
+  const spot = await findSpotOwned(db, spotId, userId)
   if (!spot) return c.notFound()
 
   const body = await c.req.parseBody()
@@ -190,6 +190,10 @@ route.post('/:id/plantings', async (c) => {
     })
     .returning({ id: plantings.id })
 
+  // Not batched with the insert above: schedule rows need newPlanting.id, which only
+  // exists after the insert commits. Worst case on failure here is a planting with no
+  // schedules yet (recoverable, non-destructive) — unlike checkpoint completion this
+  // never deletes existing data, so the atomicity tradeoff isn't worth the complexity.
   if (firstStage && newPlanting) {
     await generateTaskSchedules(db, newPlanting.id, firstStage.id)
   }

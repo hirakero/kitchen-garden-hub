@@ -1,6 +1,6 @@
 import type { FC } from 'hono/jsx'
 
-export const SettingsPage: FC = () => (
+export const SettingsPage: FC<{ email: string }> = ({ email }) => (
   <div class="space-y-6">
     <h1 class="text-xl font-bold">設定</h1>
 
@@ -22,7 +22,7 @@ export const SettingsPage: FC = () => (
     <div class="card bg-base-100 shadow-sm">
       <div class="card-body p-4 space-y-3">
         <h2 class="font-bold">アカウント</h2>
-        <p class="text-sm text-base-content/60">test@example.com でログイン中</p>
+        <p class="text-sm text-base-content/60">{email} でログイン中</p>
         <a href="/api/auth/signout" class="btn btn-outline btn-error btn-sm w-full">
           ログアウト
         </a>

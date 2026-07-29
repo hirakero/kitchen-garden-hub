@@ -8,7 +8,7 @@ const route = new Hono<AppType>()
 route.get('/', (c) => {
   return c.html(
     <Layout title="設定">
-      <SettingsPage />
+      <SettingsPage email={c.var.user.email} />
     </Layout>
   )
 })

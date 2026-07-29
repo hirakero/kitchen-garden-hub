@@ -51,10 +51,11 @@ await db.insert(plantingTaskSchedules).values(rows)
 
 ### 毎朝7時の通知バッチ
 
-```toml
-# wrangler.toml
-[triggers]
-crons = ["0 22 * * *"]  # UTC 22:00 = JST 7:00
+```jsonc
+// wrangler.jsonc
+"triggers": {
+  "crons": ["0 22 * * *"] // UTC 22:00 = JST 7:00
+}
 ```
 
 ```

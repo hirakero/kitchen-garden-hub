@@ -7,6 +7,14 @@ const CATEGORY_TABS = [
   { value: 'fruit', label: '果物' },
 ]
 
+// 絞り込みトリガー共通のhtmx属性（カテゴリタブ・検索入力で対になる入力値を hx-include で同送する）
+const filterHx = (spotId: number, extra: Record<string, string>) => ({
+  'hx-get': `/spots/${spotId}/plantings/vegetable-options`,
+  'hx-target': '#vegetable_id',
+  'hx-swap': 'outerHTML',
+  ...extra,
+})
+
 type NewPlantingPageProps = {
   spotId: number
   spotName: string
@@ -59,12 +67,7 @@ export const NewPlantingPage: FC<NewPlantingPageProps> = ({
                   aria-label={tab.label}
                   class="join-item btn btn-sm"
                   checked={tab.value === ''}
-                  {...{
-                    'hx-get': `/spots/${spotId}/plantings/vegetable-options`,
-                    'hx-include': "input[name='q']",
-                    'hx-target': '#vegetable_id',
-                    'hx-swap': 'outerHTML',
-                  }}
+                  {...filterHx(spotId, { 'hx-include': "input[name='q']" })}
                 />
               ))}
             </div>
@@ -73,13 +76,10 @@ export const NewPlantingPage: FC<NewPlantingPageProps> = ({
               name="q"
               placeholder="名前で絞り込み（例: トマト）"
               class="input input-bordered w-full"
-              {...{
-                'hx-get': `/spots/${spotId}/plantings/vegetable-options`,
+              {...filterHx(spotId, {
                 'hx-trigger': 'input changed delay:300ms, search',
                 'hx-include': "input[name='category']:checked",
-                'hx-target': '#vegetable_id',
-                'hx-swap': 'outerHTML',
-              }}
+              })}
             />
             <VegetableSelect vegetables={vegetables} />
           </div>
