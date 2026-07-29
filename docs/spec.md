@@ -118,7 +118,7 @@ kitchen-garden-hub-cc/
 │       └── daily-notify.ts       # 毎朝7時の通知バッチ処理
 ├── drizzle/
 │   └── migrations/
-├── wrangler.toml
+├── wrangler.jsonc
 ├── drizzle.config.ts
 ├── tsconfig.json
 ├── package.json
