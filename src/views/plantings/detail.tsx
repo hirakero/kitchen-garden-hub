@@ -1,7 +1,7 @@
 import type { FC } from 'hono/jsx'
 import { CheckpointList, type CheckpointItemData } from '../partials/checkpoint-list'
 
-type StageInfo = { id: number; name: string; orderIndex: number }
+type StageInfo = { id: number; name: string; orderIndex: number; description: string | null }
 type HistoryEntry = { date: string; task: string }
 
 type PlantingDetailPageProps = {
@@ -28,7 +28,8 @@ export const PlantingDetailPage: FC<PlantingDetailPageProps> = ({
   recentHistory,
 }) => {
   const currentStageIndex = currentStageId != null ? stages.findIndex((s) => s.id === currentStageId) : -1
-  const currentStageName = stages[currentStageIndex]?.name ?? '—'
+  const currentStage = stages[currentStageIndex]
+  const currentStageName = currentStage?.name ?? '—'
 
   return (
     <div class="space-y-6">
@@ -72,6 +73,14 @@ export const PlantingDetailPage: FC<PlantingDetailPageProps> = ({
             <p class="text-sm text-center">
               現在: <span class="badge badge-primary">{currentStageName}</span>
             </p>
+          )}
+          {!isFinished && currentStage?.description && (
+            <div role="note" class="alert alert-info py-2 text-sm items-start">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 shrink-0 stroke-current mt-0.5" fill="none" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>{currentStage.description}</span>
+            </div>
           )}
         </div>
       </section>
