@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
-import { eq, and, isNull, asc } from 'drizzle-orm'
+import { eq, and, isNull, asc, inArray } from 'drizzle-orm'
 import type { AppType } from '../app'
-import { getDb } from '../db'
+import { getDb, type Db } from '../db'
 import {
   checkpointMaster,
   plantings,
@@ -14,16 +14,24 @@ import {
 import { buildTaskSchedules } from '../lib/task-scheduler'
 import { positiveInt } from '../lib/params'
 import { hxRedirect } from '../lib/htmx'
+import { todayJstStartSec } from '../lib/date'
 import { CheckpointConfirmModal } from '../views/partials/checkpoint-confirm-modal'
 
 const route = new Hono<AppType>()
 
-// completedAt/skippedAt が両方未設定の予定行 = ステージ進行時に削除される予定のタスク
-const pendingScheduleCondition = (plantingId: number) =>
+// completedAt/skippedAt が両方未設定の予定行のうち、指定した task_type に絞り込む条件。
+// recurring は次ステージ分がすぐ生成されるので古い分を引き継ぐ意味がないため削除対象、
+// one_time（支柱立て・追肥など）は「まだやっていない一回限りの作業」自体に価値があるため
+// 削除せず今日に繰り越す（carryOverOneTimeSchedules）。
+const pendingScheduleOfType = (db: Db, plantingId: number, taskType: 'recurring' | 'one_time') =>
   and(
     eq(plantingTaskSchedules.plantingId, plantingId),
     isNull(plantingTaskSchedules.completedAt),
     isNull(plantingTaskSchedules.skippedAt),
+    inArray(
+      plantingTaskSchedules.taskMasterId,
+      db.select({ id: taskMaster.id }).from(taskMaster).where(eq(taskMaster.taskType, taskType)),
+    ),
   )
 
 route.get('/:id/confirm', async (c) => {
@@ -84,7 +92,7 @@ route.get('/:id/confirm', async (c) => {
       .selectDistinct({ name: taskMaster.name })
       .from(plantingTaskSchedules)
       .innerJoin(taskMaster, eq(plantingTaskSchedules.taskMasterId, taskMaster.id))
-      .where(pendingScheduleCondition(plantingId))
+      .where(pendingScheduleOfType(db, plantingId, 'recurring'))
     pendingTaskNames = pending.map((p) => p.name)
   }
 
@@ -172,12 +180,22 @@ route.post('/:id/complete', async (c) => {
   }
 
   // Compute the next stage's schedule rows up front so the whole state transition
-  // (drop old schedules, advance stage, log checkpoint, seed new schedules) commits
-  // atomically — a partial failure must never leave the checkpoint logged with no
-  // schedules generated for the stage it just advanced into.
+  // (drop old recurring schedules, carry over unfinished one_time schedules, advance stage,
+  // log checkpoint, seed new schedules) commits atomically — a partial failure must never
+  // leave the checkpoint logged with no schedules generated for the stage it just advanced into.
   const newSchedules = nextStage ? await buildTaskSchedules(db, plantingId, nextStage.id) : []
 
-  const deleteStaleSchedules = db.delete(plantingTaskSchedules).where(pendingScheduleCondition(plantingId))
+  const deleteStaleRecurring = db
+    .delete(plantingTaskSchedules)
+    .where(pendingScheduleOfType(db, plantingId, 'recurring'))
+
+  // Unfinished one_time tasks (e.g. ジャガイモ's 追肥 sitting next to the 花が咲いた checkpoint)
+  // are not lost — bump them to today so they surface in the dashboard's normal window instead
+  // of silently aging past the 7-day lookback and disappearing.
+  const carryOverOneTime = db
+    .update(plantingTaskSchedules)
+    .set({ scheduledDate: new Date(todayJstStartSec() * 1000) })
+    .where(pendingScheduleOfType(db, plantingId, 'one_time'))
 
   const advanceStage = nextStage
     ? db.update(plantings).set({ currentStageId: nextStage.id }).where(eq(plantings.id, plantingId))
@@ -189,13 +207,14 @@ route.post('/:id/complete', async (c) => {
 
   if (newSchedules.length > 0) {
     await db.batch([
-      deleteStaleSchedules,
+      deleteStaleRecurring,
+      carryOverOneTime,
       advanceStage,
       logCheckpoint,
       db.insert(plantingTaskSchedules).values(newSchedules),
     ])
   } else {
-    await db.batch([deleteStaleSchedules, advanceStage, logCheckpoint])
+    await db.batch([deleteStaleRecurring, carryOverOneTime, advanceStage, logCheckpoint])
   }
 
   return hxRedirect(c, `/plantings/${plantingId}`)
