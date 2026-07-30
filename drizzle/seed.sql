@@ -161,6 +161,7 @@ INSERT OR IGNORE INTO task_master (id, stage_id, name, task_type, days_from_stag
   (15, 7,  '追肥',                'recurring', NULL, 7),
   (16, 7,  '誘引',                'recurring', NULL, 3),
   (60, 7,  '観察（病害虫）',      'recurring', NULL, 7),
+  (263, 7, '整枝・摘葉',          'recurring', NULL, 7),
   -- きゅうり 収穫期 (stage 8)
   (17, 8,  '水やり',              'recurring', NULL, 1),
   (18, 8,  '収穫',                'recurring', NULL, 2),
@@ -213,9 +214,10 @@ INSERT OR IGNORE INTO task_master (id, stage_id, name, task_type, days_from_stag
   (46, 25, '定植',                'one_time',  0,    NULL),
   (47, 25, '水やり',              'recurring', NULL, 3),
   -- タマネギ 越冬・生育 (stage 26)
-  -- 追肥は2回のみ。3月以降の施肥は裂球の原因になる。
+  -- 追肥は3回まで。3月以降の施肥は裂球の原因になるため避ける。
   (48, 26, '追肥（第1回）',       'one_time',  30,   NULL),
   (62, 26, '追肥（第2回）',       'one_time',  60,   NULL),
+  (261, 26, '追肥（第3回）',      'one_time',  90,   NULL),
   (49, 26, '観察',                'recurring', NULL, 14),
   -- タマネギ 収穫・乾燥 (stage 27)
   (50, 27, '収穫',                'one_time',  0,    NULL),
@@ -704,6 +706,7 @@ INSERT OR IGNORE INTO task_master (id, stage_id, name, task_type, days_from_stag
   (194, 88, '水やり',              'recurring', NULL, 3),
   -- ニンニク 発芽・越冬 (stage 89)
   (195, 89, '水やり',              'recurring', NULL, 5),
+  (262, 89, '追肥（活着肥）',      'one_time',  30,   NULL),
   (196, 89, '観察',                'recurring', NULL, 14),
   -- ニンニク 生育（とう立ち期） (stage 90)
   (197, 90, '水やり',              'recurring', NULL, 3),
