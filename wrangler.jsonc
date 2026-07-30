@@ -9,7 +9,7 @@
     {
       "binding": "DB",
       "database_name": "kitchen-garden-hub",
-      "database_id": "placeholder-replace-after-wrangler-d1-create",
+      "database_id": "238da1de-3f09-4c33-9e52-6715c00eec33",
       "migrations_dir": "drizzle/migrations"
     }
   ],
@@ -19,8 +19,8 @@
   },
 
   "vars": {
-    "APP_URL": "http://localhost:8787",
-    "VAPID_SUBJECT": "mailto:your@gmail.com"
+    "APP_URL": "https://kitchen-garden-hub-cc.hirakero.workers.dev",
+    "VAPID_SUBJECT": "mailto:k16.h.white@gmail.com"
   }
 
   // secrets (set via `wrangler secret put`):

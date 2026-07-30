@@ -7,9 +7,9 @@
     "deploy": "wrangler deploy",
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply kitchen-garden-hub --local",
-    "db:migrate:remote": "wrangler d1 migrations apply kitchen-garden-hub",
+    "db:migrate:remote": "wrangler d1 migrations apply kitchen-garden-hub --remote",
     "db:seed:local": "wrangler d1 execute kitchen-garden-hub --local --file=drizzle/seed.sql",
-    "db:seed:remote": "wrangler d1 execute kitchen-garden-hub --file=drizzle/seed.sql",
+    "db:seed:remote": "wrangler d1 execute kitchen-garden-hub --remote --file=drizzle/seed.sql",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest"
