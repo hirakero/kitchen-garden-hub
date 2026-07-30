@@ -23,6 +23,10 @@ export const stageMaster = sqliteTable('stage_master', {
   name: text('name').notNull(),
   orderIndex: integer('order_index').notNull(),
   description: text('description'),
+  // 多年草などステージ進行が終わらない最終ステージ用（例: ニラの「収穫期（多年草）」）。
+  // true の最終ステージはチェックポイント完了時に finishedAt を立てず、
+  // recurring タスクを継続的に延長する（lib/task-scheduler.ts topUpOngoingSchedules）。
+  isOngoing: integer('is_ongoing', { mode: 'boolean' }).notNull().default(false),
 })
 
 export const checkpointMaster = sqliteTable('checkpoint_master', {

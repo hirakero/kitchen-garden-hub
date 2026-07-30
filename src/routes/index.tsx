@@ -4,6 +4,7 @@ import type { AppType } from '../app'
 import { getDb } from '../db'
 import { plantings, vegetableMaster, spots, stageMaster } from '../db/schema'
 import { fetchTaskGroups } from '../lib/task-groups'
+import { topUpOngoingSchedules } from '../lib/task-scheduler'
 import { Layout } from '../views/layouts/base'
 import { DashboardPage } from '../views/dashboard'
 import type { PlantingCardData } from '../views/partials/planting-card'
@@ -13,6 +14,11 @@ const route = new Hono<AppType>()
 route.get('/', async (c) => {
   const db = getDb(c.env.DB)
   const userId = c.var.user.id
+
+  // Perennial plantings (e.g. ニラ) sitting in an "ongoing" final stage never trigger a new
+  // checkpoint, so their recurring tasks would otherwise run out ~60 days after the stage
+  // was entered. Top them up here, on the one screen the user is guaranteed to open regularly.
+  await topUpOngoingSchedules(db, userId)
 
   const [taskGroups, activePlantings, allSpots] = await Promise.all([
     fetchTaskGroups(db, userId),

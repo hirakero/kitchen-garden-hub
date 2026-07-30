@@ -1,0 +1,1 @@
+ALTER TABLE `stage_master` ADD `is_ongoing` integer DEFAULT false NOT NULL;

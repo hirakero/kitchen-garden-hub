@@ -46,7 +46,12 @@ route.get('/:id', async (c) => {
   if (!planting) return c.notFound()
 
   const allStages = await db
-    .select({ id: stageMaster.id, name: stageMaster.name, orderIndex: stageMaster.orderIndex })
+    .select({
+      id: stageMaster.id,
+      name: stageMaster.name,
+      orderIndex: stageMaster.orderIndex,
+      description: stageMaster.description,
+    })
     .from(stageMaster)
     .where(eq(stageMaster.vegetableId, planting.vegetableId))
     .orderBy(asc(stageMaster.orderIndex))

@@ -8,6 +8,7 @@ import {
   plantingCheckpointLogs,
   plantingTaskSchedules,
   stageMaster,
+  taskMaster,
   vegetableMaster,
 } from '../db/schema'
 import { buildTaskSchedules } from '../lib/task-scheduler'
@@ -16,6 +17,14 @@ import { hxRedirect } from '../lib/htmx'
 import { CheckpointConfirmModal } from '../views/partials/checkpoint-confirm-modal'
 
 const route = new Hono<AppType>()
+
+// completedAt/skippedAt が両方未設定の予定行 = ステージ進行時に削除される予定のタスク
+const pendingScheduleCondition = (plantingId: number) =>
+  and(
+    eq(plantingTaskSchedules.plantingId, plantingId),
+    isNull(plantingTaskSchedules.completedAt),
+    isNull(plantingTaskSchedules.skippedAt),
+  )
 
 route.get('/:id/confirm', async (c) => {
   const db = getDb(c.env.DB)
@@ -51,22 +60,43 @@ route.get('/:id/confirm', async (c) => {
   if (cp.stageId !== planting.currentStageId) return c.notFound()
 
   const allStages = await db
-    .select({ id: stageMaster.id, name: stageMaster.name, orderIndex: stageMaster.orderIndex })
+    .select({
+      id: stageMaster.id,
+      name: stageMaster.name,
+      orderIndex: stageMaster.orderIndex,
+      isOngoing: stageMaster.isOngoing,
+    })
     .from(stageMaster)
     .where(eq(stageMaster.vegetableId, planting.vegetableId))
     .orderBy(asc(stageMaster.orderIndex))
 
-  const currentStageName = allStages.find((s) => s.id === cp.stageId)?.name ?? '—'
   const currentIdx = allStages.findIndex((s) => s.id === cp.stageId)
+  const currentStage = currentIdx >= 0 ? allStages[currentIdx] : undefined
   const nextStage = currentIdx >= 0 && currentIdx < allStages.length - 1 ? allStages[currentIdx + 1] : null
+
+  // Perennial stage (e.g. ニラ's 収穫期（多年草）) with no next stage — this checkpoint just
+  // records a seasonal milestone, nothing gets deleted or finished
+  const isOngoingRenewal = nextStage === null && (currentStage?.isOngoing ?? false)
+
+  let pendingTaskNames: string[] = []
+  if (!isOngoingRenewal) {
+    const pending = await db
+      .selectDistinct({ name: taskMaster.name })
+      .from(plantingTaskSchedules)
+      .innerJoin(taskMaster, eq(plantingTaskSchedules.taskMasterId, taskMaster.id))
+      .where(pendingScheduleCondition(plantingId))
+    pendingTaskNames = pending.map((p) => p.name)
+  }
 
   return c.html(
     <CheckpointConfirmModal
       checkpointId={checkpointId}
       plantingId={plantingId}
       vegetableName={planting.vegetableName}
-      currentStageName={currentStageName}
+      currentStageName={currentStage?.name ?? '—'}
       nextStageName={nextStage?.name ?? null}
+      isOngoing={isOngoingRenewal}
+      pendingTaskNames={pendingTaskNames}
     />
   )
 })
@@ -124,13 +154,22 @@ route.post('/:id/complete', async (c) => {
   }
 
   const allStages = await db
-    .select({ id: stageMaster.id, orderIndex: stageMaster.orderIndex })
+    .select({ id: stageMaster.id, orderIndex: stageMaster.orderIndex, isOngoing: stageMaster.isOngoing })
     .from(stageMaster)
     .where(eq(stageMaster.vegetableId, planting.vegetableId))
     .orderBy(asc(stageMaster.orderIndex))
 
   const currentIdx = allStages.findIndex((s) => s.id === planting.currentStageId)
+  const currentStage = currentIdx >= 0 ? allStages[currentIdx] : undefined
   const nextStage = currentIdx >= 0 && currentIdx < allStages.length - 1 ? allStages[currentIdx + 1] : null
+
+  // Perennial stage with no next stage: just log the milestone. The planting stays active with
+  // its current (unchanged) stage, and its recurring schedules are topped up separately
+  // (lib/task-scheduler.topUpOngoingSchedules) since no further checkpoint will ever fire here.
+  if (!nextStage && currentStage?.isOngoing) {
+    await db.insert(plantingCheckpointLogs).values({ plantingId, checkpointMasterId: checkpointId })
+    return hxRedirect(c, `/plantings/${plantingId}`)
+  }
 
   // Compute the next stage's schedule rows up front so the whole state transition
   // (drop old schedules, advance stage, log checkpoint, seed new schedules) commits
@@ -138,15 +177,7 @@ route.post('/:id/complete', async (c) => {
   // schedules generated for the stage it just advanced into.
   const newSchedules = nextStage ? await buildTaskSchedules(db, plantingId, nextStage.id) : []
 
-  const deleteStaleSchedules = db
-    .delete(plantingTaskSchedules)
-    .where(
-      and(
-        eq(plantingTaskSchedules.plantingId, plantingId),
-        isNull(plantingTaskSchedules.completedAt),
-        isNull(plantingTaskSchedules.skippedAt),
-      )
-    )
+  const deleteStaleSchedules = db.delete(plantingTaskSchedules).where(pendingScheduleCondition(plantingId))
 
   const advanceStage = nextStage
     ? db.update(plantings).set({ currentStageId: nextStage.id }).where(eq(plantings.id, plantingId))

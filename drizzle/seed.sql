@@ -868,3 +868,10 @@ INSERT OR IGNORE INTO task_master (id, stage_id, name, task_type, days_from_stag
 -- （UPDATEなので既存DB・新規DBどちらに対しても安全に適用できる）
 -- ================================================================
 UPDATE vegetable_master SET category = 'fruit' WHERE id IN (30, 31, 32);
+
+-- ================================================================
+-- is_ongoing (多年草などステージが終わらない最終ステージ)
+-- ニラの「収穫期（多年草）」(stage 20) のみ対象。
+-- チェックポイント完了で栽培終了にせず、recurring タスクを延長し続ける。
+-- ================================================================
+UPDATE stage_master SET is_ongoing = 1 WHERE id = 20;
